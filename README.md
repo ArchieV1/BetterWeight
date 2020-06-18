@@ -18,5 +18,13 @@ Based on batteries the default should be a 55% efficiency
 What if steel weighed double of what it does now? How would moving around the map with steel mortars be effected?
 
 ## Requirements
-Requires [Harmony](https://github.com/pardeike/HarmonyRimWorld) in order to run
-Reccomends [Minify Everything](https://github.com/erdelf/MinifyEverything) to make use of half of the features
+Requires: [Harmony](https://github.com/pardeike/HarmonyRimWorld) in order to run  
+Reccomends: [Minify Everything](https://github.com/erdelf/MinifyEverything) to make use of half of the features
+
+## Compatibility
+Tested to work on rimworld version 1.1  
+1.0 should be supported  
+Royalty should be supported  
+
+### Known Bugs
+You must restart the game after launching in order for the weights to upate (Eg. after enabling a new mod or installing this mod for the first time)
