@@ -6,9 +6,9 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("BetterWeight")]
-[assembly: AssemblyDescription("A rimworld mod that makes weights of objects better")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("ArchieV")]
+[assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("BetterWeight")]
 [assembly: AssemblyCopyright("Copyright ©  2020")]
 [assembly: AssemblyTrademark("")]
