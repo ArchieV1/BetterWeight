@@ -79,6 +79,7 @@ namespace ArchieVBetterWeight
                 "You MUST restart your game for changes to take effect (Otherwise the new buildings will have a mass of 1.00kg",
                 true);
             needToRestart.NeverVisible = true;
+            needToRestart.CanBeReset = false;
 
         }
 
@@ -132,9 +133,9 @@ namespace ArchieVBetterWeight
                     {
                         // If it has equaled 1 again it will log a non important error.
                         // May as well remove it though
-                        if ((float)Math.Round(CalculateMass(def)) != 1.00f)
+                        if (RoundMass(CalculateMass(def)) != 1.00f && RoundMass(CalculateMass(def)) != 0.00f)
                         {
-                            patches += CreatePatch(def, (float)Math.Round(CalculateMass(def)));
+                            patches += CreatePatch(def, (RoundMass(CalculateMass(def))));
                             //Log.Message(def.defName);
                         }
                     }
@@ -214,7 +215,18 @@ namespace ArchieVBetterWeight
             //numberOfDPToRoundTo
             //roundToNearest5
 
-            return 0.00f;
+            float newMass = new float();
+
+            if (roundToNearest5)
+            {
+                newMass = (float)Math.Round(initMass*5, numberOfDPToRoundTo)/5;
+            }
+            else
+            {
+                newMass = (float)Math.Round(initMass, numberOfDPToRoundTo);
+            }
+
+            return newMass;
         }
 
 
@@ -231,7 +243,7 @@ namespace ArchieVBetterWeight
         }
 
         /// <summary>
-        /// Calculate mass recusively
+        /// Calculate mass recusively. NO ROUNDING IS DONE HERE
         /// </summary>
         /// <param name="thing"></param>
         /// <returns>The mass of the passed value</returns>
