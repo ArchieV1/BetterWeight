@@ -47,7 +47,7 @@ namespace ArchieVBetterWeight
             //LogAllBuildingWeights(dict);
             CreatePatches(dict);
 
-            Log.Message("Successfully loaded BetterWeight" +
+            Log.Error("Successfully loaded BetterWeight" +
                 "If you have changed the modlist/just installed BetterWeight you need to restart for the changes to take effect");
         }
 
@@ -70,7 +70,7 @@ namespace ArchieVBetterWeight
         /// <returns>The mass of the passed value</returns>
         public float CalculateMass(ThingDef thing)
         {
-            Log.Warning("Start CalculateMass");
+            //Log.Warning("Start CalculateMass");
             float mass = 0.00f;
 
             if (IsItABuilding(thing))
@@ -87,9 +87,15 @@ namespace ArchieVBetterWeight
                         mass += part.count * CalculateMass(part.thingDef) * settings.efficiency;
                     }
                 }
-                //mass += thing.costStuffCount * 
+                // If has costStuffCount eg, can be made of wood/steel/granite
+                // Wayyyyy too hard to calculate it properly so just assume mass = 1
+                // This assumptions means wooden doors weigh more than their parts total but stone weigh a bit less
+                if (thing.costStuffCount != 0)
+                {
+                    mass += thing.costStuffCount * 1;
+                }
             }
-            Log.Message("END CalculateMass");
+            //Log.Message("END CalculateMass");
             return mass;
         }
 
@@ -153,7 +159,7 @@ namespace ArchieVBetterWeight
         /// <returns></returns>
         public string CreatePatch(ThingDef thing, float newMass)
         {
-            Log.Warning("START CreatePatche");
+            //Log.Warning("START CreatePatche");
             string final = "";
             string operation = "";
             if (thing.BaseMass == 1.00f)
@@ -172,7 +178,7 @@ namespace ArchieVBetterWeight
             final += "</value>\n";
             final += "</Operation>\n";
 
-            Log.Message("END CreatePatche");
+            //Log.Message("END CreatePatche");
             return final;
         }
 
@@ -182,11 +188,11 @@ namespace ArchieVBetterWeight
         /// <param name="allBuildings"></param>
         public void CreatePatches(Dictionary<ThingDef, float> allBuildings)
         {
-            Log.Warning("START CreatePatches");
+            //Log.Warning("START CreatePatches");
             string path = Directory.GetCurrentDirectory();
             path = Directory.GetParent(path).ToString();
 
-            Log.Error(path);
+            //Log.Error(path);
             path += "\\Patches";
 
             foreach (FileInfo toDelete in new DirectoryInfo(path).GetFiles())
@@ -205,7 +211,7 @@ namespace ArchieVBetterWeight
             {
                 if (ShouldPatch(entry.Key))
                 {
-                    Log.Message(entry.Key.defName + entry.Value.ToString());
+                    //Log.Message(entry.Key.defName + entry.Value.ToString());
                     patches += CreatePatch(entry.Key, entry.Value);
                 }
             }
@@ -215,7 +221,7 @@ namespace ArchieVBetterWeight
 
             file.Write(patches);
             file.Close();
-            Log.Message("END CreatePatches");
+            //Log.Message("END CreatePatches");
         }
 
         /// <summary>
@@ -239,7 +245,9 @@ namespace ArchieVBetterWeight
             listingStandard.Begin(inRect);
             //listingStandard.CheckboxLabeled("exampleBoolExplanation", ref settings.exampleBool, "exampleBoolToolTip");
             listingStandard.Label("Efficiency");
-            settings.efficiency = listingStandard.Slider(settings.efficiency, 100f, 300f);
+            settings.efficiency = listingStandard.Slider(settings.efficiency, 0.05f, 300f);
+
+            listingStandard.Label("Categories");
             listingStandard.End();
             base.DoSettingsWindowContents(inRect);
         }
@@ -251,7 +259,7 @@ namespace ArchieVBetterWeight
         /// <returns>The (translated) mod name.</returns>
         public override string SettingsCategory()
         {
-            return "MyExampleModName".Translate();
+            return "BetterWeight";
         }
     }
 
@@ -273,7 +281,7 @@ namespace ArchieVBetterWeight
         /// </summary>
         public override void ExposeData()
         {
-            Scribe_Values.Look(ref efficiency, "efficienct", 0.75f);
+            Scribe_Values.Look(ref efficiency, "efficiency", 0.75f);
             //Scribe_Collections.Look(ref shouldPatch, "shouldPatch", LookMode.Reference);
             base.ExposeData();
         }
