@@ -85,5 +85,14 @@
     <Compile Include="BetterWeightClass.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Resources\Mods\BetterWeight\About\about.xml" />
+    <Content Include="Resources\Mods\BetterWeight\About\Manifest.xml" />
+    <Content Include="Resources\Mods\BetterWeight\Assemblies\BetterWeight.dll" />
+    <Content Include="Resources\Mods\BetterWeight\Assemblies\BetterWeight.pdb" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Resources\Mods\BetterWeight\Patches\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
