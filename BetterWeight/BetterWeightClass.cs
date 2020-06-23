@@ -11,7 +11,7 @@ namespace ArchieVBetterWeight
     {
         static StartupClass() //Constructor
         {
-            Log.Error("ArchieVBetterWeight");
+            Log.Message("ArchieVBetterWeight");
 
             BetterWeight betterWeight = new BetterWeight();
         }
@@ -23,10 +23,10 @@ namespace ArchieVBetterWeight
 
         //private List<ThingCategory> shouldPatch = new List<ThingCategory> { ThingCategory.Building };
 
-        private HugsLib.Settings.SettingHandle<int> efficiency;
-        private HugsLib.Settings.SettingHandle<int> numberOfDPToRoundTo;
-        private HugsLib.Settings.SettingHandle<bool> roundToNearest5;
-        private HugsLib.Settings.SettingHandle<bool> needToRestart;
+        private SettingHandle<int> efficiency;
+        private SettingHandle<int> numberOfDPToRoundTo;
+        private SettingHandle<bool> roundToNearest5;
+        private SettingHandle<bool> needToRestart;
 
         public override void DefsLoaded()
         {
@@ -304,7 +304,7 @@ namespace ArchieVBetterWeight
 
         /// <summary>
         /// If it's:
-        /// [(A building AND needs materials) OR(A building AND needs stuffMaterials)] AND mass = 1
+        /// [(A building AND needs materials) OR (A building AND needs stuffMaterials)] AND mass = 1
         /// </summary>
         /// <param name="thing">The thing to be checked if it needs patching</param>
         /// <returns>true if it should be patched</returns>
