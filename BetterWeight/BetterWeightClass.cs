@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Verse;
 using HugsLib;
 using HugsLib.Settings;
+using HarmonyLib;
 
 namespace ArchieVBetterWeight
 {
@@ -323,5 +324,15 @@ namespace ArchieVBetterWeight
         }
     }
 
+    [HarmonyPatch(typeof(WindowStack))]
+    [HarmonyPatch("Add")]
+    [HarmonyPatch(new Type[] { typeof(Window) })]
+    class Get_BaseMass_Patch
+    {
+        static void Postfix(Window window)
+        {
+            Log.Warning("Window: " + window);
+        }
+    }
 }
 
