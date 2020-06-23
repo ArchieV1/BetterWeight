@@ -13,8 +13,9 @@ namespace ArchieVBetterWeight
         static StartupClass() //Constructor
         {
             Log.Message("ArchieVBetterWeight");
-
-            BetterWeight betterWeight = new BetterWeight();
+            Harmony harmony = new Harmony("ArchieVBetterWeight");
+            
+            //BetterWeight betterWeight = new BetterWeight();
         }
     }
 
@@ -324,14 +325,14 @@ namespace ArchieVBetterWeight
         }
     }
 
-    [HarmonyPatch(typeof(WindowStack))]
-    [HarmonyPatch("Add")]
-    [HarmonyPatch(new Type[] { typeof(Window) })]
-    class Get_BaseMass_Patch
+    [HarmonyPatch(typeof(Building))]
+    [HarmonyPatch("get_BaseMass")]
+    class GetBaseMassPatch
     {
-        static void Postfix(Window window)
+        static bool Postfix(ref float __result)
         {
-            Log.Warning("Window: " + window);
+            __result = 62;
+            return false; //return false to skip execution of the original.
         }
     }
 }
