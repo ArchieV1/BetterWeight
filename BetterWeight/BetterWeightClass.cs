@@ -5,6 +5,8 @@ using Verse;
 using HugsLib;
 using HugsLib.Settings;
 using HarmonyLib;
+using System.Reflection;
+using RimWorld;
 
 namespace ArchieVBetterWeight
 {
@@ -13,8 +15,13 @@ namespace ArchieVBetterWeight
         static StartupClass() //Constructor
         {
             Log.Message("ArchieVBetterWeight");
-            Harmony harmony = new Harmony("ArchieVBetterWeight");
-            
+            Harmony harmony = new Harmony("uk.ArchieV.projects.modding.Rimworld.BetterWeight");
+            //Harmony.DEBUG = true;
+
+            //HarmonyPatchs harmonyPatches = new HarmonyPatchs();
+
+            harmony.PatchAll();
+
             //BetterWeight betterWeight = new BetterWeight();
         }
     }
@@ -98,7 +105,7 @@ namespace ArchieVBetterWeight
             {
                 Log.Error(e.ToString());
             }
-            
+
         }
 
         /// <summary>
@@ -207,7 +214,7 @@ namespace ArchieVBetterWeight
 
             if (roundToNearest5)
             {
-                newMass = (float)Math.Round(initMass*5, numberOfDPToRoundTo)/5;
+                newMass = (float)Math.Round(initMass * 5, numberOfDPToRoundTo) / 5;
             }
             else
             {
@@ -325,15 +332,111 @@ namespace ArchieVBetterWeight
         }
     }
 
-    [HarmonyPatch(typeof(Building))]
-    [HarmonyPatch("get_BaseMass")]
-    class GetBaseMassPatch
+    [HarmonyPatch(typeof(Verse.ThingDef))] // Edits thingdef
+    //[HarmonyPatch(MethodType.Getter)] // Edits a getter
+    [HarmonyPatch("BaseMass", MethodType.Getter)] // Edits the get BaseMass getter
+    class HarmonyPatchs
     {
-        static bool Postfix(ref float __result)
+        /// <summary>
+        /// This seems to only be debug
+        /// </summary>
+        /// <param name="__result"></param>
+        [HarmonyPostfix]
+        static void GetBaseMassPatch(ref float __result)
         {
             __result = 62;
-            return false; //return false to skip execution of the original.
+            Log.Error("Ran code", true);
+            //return 62f; //return false to skip execution of the original.
         }
     }
+
+    /// <summary>
+    /// This one works. But only when getting mass
+    /// </summary>
+    [HarmonyPatch(typeof(StatExtension))]
+    [HarmonyPatch(nameof(StatExtension.GetStatValueAbstract), new Type[] { typeof(BuildableDef), typeof(StatDef), typeof(ThingDef)} )]
+    static class GetStatValueAbstract3
+    {
+        //[HarmonyPrefix]
+        //static bool getbasevalueforpatch(this AbilityDef def, StatDef stat)
+        //{
+        //    Log.Error(def.defName + stat.ToString());
+        //    //return stat.Worker.GetValueAbstract(def);
+        //    return true; //let origional run
+        //}
+        [HarmonyPostfix]
+        public static void GetStatValueAbstract2(ref float __result)
+        {
+            //Log.Error("StatValue " + __result.ToString());
+        }
+
+        [HarmonyPrefix]
+        public static bool GetStatValueAbstract5(this BuildableDef def, StatDef stat, ThingDef stuff = null)
+        {
+            //Log.Message(def.defName + stat.defName);
+            if (!stat.defName.EqualsIgnoreCase("StuffPower_Insulation_Heat") && !stat.defName.EqualsIgnoreCase("StuffPower_Insulation_Cold") &&
+                !stat.defName.EqualsIgnoreCase("Medicalpotency") && !stat.defName.EqualsIgnoreCase("beauty") && !stat.defName.EqualsIgnoreCase("nutrition") &&
+                !stat.defName.EqualsIgnoreCase("ComfyTemperatureMin") && !stat.defName.EqualsIgnoreCase("ComfyTemperatureMax") &&
+                !stat.defName.EqualsIgnoreCase("worktomake") && !stat.defName.EqualsIgnoreCase("worktobuild") && !stat.defName.EqualsIgnoreCase("marketvalue") &&
+                !stat.defName.EqualsIgnoreCase("StuffPower_Armor_Sharp") && !stat.defName.EqualsIgnoreCase("StuffPower_Armor_Blunt"))
+            {
+                Log.Error(stat.defName, true);
+            }
+            //return stat.Worker.GetValueAbstract(def, stuff);
+            // Its called "Mass" and its when you make a caravan
+            return true;
+        }
+    }
+
+    static class GetStatValue3
+    {
+        [HarmonyPatch(typeof(StatExtension))]
+        [HarmonyPatch(nameof(StatExtension.GetStatValue))]
+        public static float GetStatValue(this Thing thing, StatDef stat, bool applyPostProcess = true)
+        {
+            if (!thing.def.defName.EqualsIgnoreCase("StuffPower_Insulation_Heat") && !thing.def.defName.EqualsIgnoreCase("StuffPower_Insulation_Cold"))
+            {
+                Log.Error(thing.def.defName, true);
+            }
+            return stat.Worker.GetValue(thing, applyPostProcess);
+        }
+
+        
+    }
+
+    /// <summary>
+    /// Literally no clue when this is called
+    /// </summary>
+    [HarmonyPatch(typeof(StatWorker))]
+    [HarmonyPatch(nameof(StatWorker.GetValueAbstract), new Type[] { typeof(AbilityDef) })]
+    static class patch4
+    {
+        [HarmonyPrefix]
+        public static bool GetValueAbstractPatch(AbilityDef def)
+        {
+            Log.Error(def.defName, true);
+            //return StatWorker.GetValue(StatRequest.For(def), true);
+            return true;
+        }
+
+        [HarmonyPostfix]
+        public static void GetValueAbstractPatc2h(AbilityDef def)
+        {
+            Log.Error(def.defName, true);
+            //return StatWorker.GetValue(StatRequest.For(def), true);
+        }
+    }
+
+    //[HarmonyPatch(typeof(StatExtension))]
+    //[HarmonyPatch(nameof(StatExtension.GetStatValue), new Type[] { typeof(BuildableDef), typeof(ThingDef) })]
+    //static class GetValueAbstract2
+    //{
+    //    [HarmonyPrefix]
+    //    static bool prefixOne(BuildableDef def, ThingDef stuffDef = null)
+    //    {
+    //        Log.Error(def.defName + stuffDef.defName);
+    //        return true;
+    //    }
+    //}
 }
 
