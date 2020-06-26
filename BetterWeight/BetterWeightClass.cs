@@ -132,98 +132,110 @@ namespace ArchieVBetterWeight
         static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
         {
             //todo reimplement check to see if its 1 or 0. You should probs put it in ShouldPatch() tho
-            
+
             //quich check to make sure thing isn't null
             if (req.Thing == null) return true;
             if (req.Thing.def == null) return true;
-            
-            if (PatchTools.ShouldPatch(req.Thing.def))
+
+            // if (PatchTools.ShouldPatch(req.Thing.def))
+            // {
+
+            var containsMass = false;
+            for (var index = 0; index < req.StatBases.Count; index++) //iterate through all stats in request
             {
-                for (var index = 0; index < req.StatBases.Count; index++) //iterate through all stats in request
+                var stat = req.StatBases[index]; //get current stat
+                if (stat.stat.label == "mass") //check if it is the mass
                 {
-                    var stat = req.StatBases[index]; //get current stat
-                    if (stat.stat.label == "mass") //check if it is the mass
-                    {
-                        var mass = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
-                        Log.Message("Changed mass for " + req.Def.defName + " to " + mass);
-                        req.StatBases[index].value = mass; //set mass of item here
-                    }
+                    var mass = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
+                    //Log.Message("Changed mass for " + req.Def.defName + " to " + mass);
+                    req.StatBases[index].value = mass; //set mass of item here
+                    containsMass = true;
+                }
+
+                if (!containsMass)
+                {
+                    StatModifier i = new StatModifier();
+                    i.stat = StatDefOf.Mass;
+                    i.value = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
+                    req.StatBases.Add(i);
+                    Log.Message("Added mass for " + req.Thing.def.defName);
                 }
             }
+        //}
+        return true; //returns true so function runs with modifed StatReq
+    }
 
-            return true; //returns true so function runs with modifed StatReq
+    public class BetterWeight : ModBase
+    {
+        public override string ModIdentifier => "ArchieV.BetterWeight";
+
+
+        public SettingHandle<int> efficiency;
+        private SettingHandle<int> numberOfDPToRoundTo;
+        private SettingHandle<bool> roundToNearest5;
+
+        //private List<ThingCategory> shouldPatch = new List<ThingCategory> { ThingCategory.Building };
+
+        public override void DefsLoaded()
+        {
+            efficiency = Settings.GetHandle<int>(
+                "BetterWeight_efficiency",
+                "Efficiency",
+                "What percentage of the weight goes into the building and what percentage is waste\n" +
+                "Range = 1% - 300%",
+                75,
+                Validators.IntRangeValidator(1, 300));
+
+            numberOfDPToRoundTo = Settings.GetHandle<int>(
+                "BetterWeight_numberOfDPToRoundTo",
+                "Number of decimal points to round to",
+                "How many decimal points to round the calculated value to\n" +
+                "Range = 0 - 2 decimal places",
+                0,
+                Validators.IntRangeValidator(0, 2));
+
+            roundToNearest5 = Settings.GetHandle<bool>(
+                "BetterWeight_roundToNearest5",
+                "Round to the nearest 5",
+                "Should calculated masses be rounded to the nearest 5 of the number of DP specified?\n" +
+                "Eg:\n" +
+                "1.24 to 2DP and with this true will round to 1.25\n" +
+                "234.37 to 0DP with this true will round to 235",
+                false);
         }
 
-        public class BetterWeight : ModBase
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public BetterWeight()
         {
-            public override string ModIdentifier => "ArchieV.BetterWeight";
-
-
-            public SettingHandle<int> efficiency;
-            private SettingHandle<int> numberOfDPToRoundTo;
-            private SettingHandle<bool> roundToNearest5;
-
-            //private List<ThingCategory> shouldPatch = new List<ThingCategory> { ThingCategory.Building };
-
-            public override void DefsLoaded()
+            try
             {
-                efficiency = Settings.GetHandle<int>(
-                    "BetterWeight_efficiency",
-                    "Efficiency",
-                    "What percentage of the weight goes into the building and what percentage is waste\n" +
-                    "Range = 1% - 300%",
-                    75,
-                    Validators.IntRangeValidator(1, 300));
+                Log.Message(DateTime.Now.ToString("h:mm:ss tt") + "Loading BetterWeight...");
 
-                numberOfDPToRoundTo = Settings.GetHandle<int>(
-                    "BetterWeight_numberOfDPToRoundTo",
-                    "Number of decimal points to round to",
-                    "How many decimal points to round the calculated value to\n" +
-                    "Range = 0 - 2 decimal places",
-                    0,
-                    Validators.IntRangeValidator(0, 2));
+                DefsLoaded();
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+            }
+        }
 
-                roundToNearest5 = Settings.GetHandle<bool>(
-                    "BetterWeight_roundToNearest5",
-                    "Round to the nearest 5",
-                    "Should calculated masses be rounded to the nearest 5 of the number of DP specified?\n" +
-                    "Eg:\n" +
-                    "1.24 to 2DP and with this true will round to 1.25\n" +
-                    "234.37 to 0DP with this true will round to 235",
-                    false);
+        public void LogAllBuildingWeights(Dictionary<ThingDef, float> allBuildings)
+        {
+            //Log.Warning("START logAllBuildingsWeights");
+            foreach (KeyValuePair<ThingDef, float> pair in allBuildings)
+            {
+                Log.Message(
+                    pair.Key.defName + "\n" +
+                    pair.Key.BaseMass + "BaseMass" + "\n" +
+                    pair.Value.ToString() + "NewMass");
             }
 
-
-            /// <summary>
-            /// Constructor
-            /// </summary>
-            public BetterWeight()
-            {
-                try
-                {
-                    Log.Message(DateTime.Now.ToString("h:mm:ss tt") + "Loading BetterWeight...");
-
-                    DefsLoaded();
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e.ToString());
-                }
-            }
-
-            public void LogAllBuildingWeights(Dictionary<ThingDef, float> allBuildings)
-            {
-                //Log.Warning("START logAllBuildingsWeights");
-                foreach (KeyValuePair<ThingDef, float> pair in allBuildings)
-                {
-                    Log.Message(
-                        pair.Key.defName + "\n" +
-                        pair.Key.BaseMass + "BaseMass" + "\n" +
-                        pair.Value.ToString() + "NewMass");
-                }
-
-                //Log.Message("END ItHasMass");
-            }
+            //Log.Message("END ItHasMass");
         }
     }
+}
+
 }
