@@ -11,12 +11,28 @@ using RimWorld;
 
 namespace ArchieVBetterWeight
 {
-    public static class PatchTools
+    public class PatchTools
     {
-        //because this is static it currently cannot access the class with your settings so you'll have to fix that somehow
-        static int efficiency = 80;
-        static int numberOfDPToRoundTo = 2;
-        static bool roundToNearest5 = true;
+        /// <summary>
+        /// Round the mass based on the settings above
+        /// </summary>
+        /// <param name="initMass"></param>
+        /// <returns></returns>
+        public static float RoundMass(float initMass)
+        {
+            float newMass = new float();
+
+            if (BetterWeight.roundToNearest5)
+            {
+                newMass = (float)Math.Round(initMass * 5, BetterWeight.numberOfDPToRoundTo) / 5;
+            }
+            else
+            {
+                newMass = (float)Math.Round(initMass, BetterWeight.numberOfDPToRoundTo);
+            }
+
+            return newMass;
+        }
 
         /// <summary>
         /// If it's:
@@ -26,13 +42,19 @@ namespace ArchieVBetterWeight
         /// <returns>true if it should be patched</returns>
         public static bool ShouldPatch(ThingDef thing)
         {
-            // If its a building that costs either materials or StuffMaterials
+            if (thing.category == ThingCategory.Building)
+            { return true; }
+            else { return false; }
+            
+            //return BetterWeight.thingDefEffeciency.ContainsKey(thing);
+
+            // if its a building that costs either materials or stuffmaterials
             if (((thing.category == ThingCategory.Building && thing.costList != null) ||
                  (thing.category == ThingCategory.Building && thing.costStuffCount != 0))
                 && thing.BaseMass == 1)
             {
-                //Log.Message(thing.category.ToString());
-                //Log.Message(ThingCategory.Building.ToString());
+                //log.message(thing.category.tostring());
+                //log.message(thingcategory.building.tostring());
 
                 return true;
             }
@@ -58,9 +80,10 @@ namespace ArchieVBetterWeight
                 {
                     foreach (ThingDefCountClass part in thing.costList)
                     {
-                        mass += part.thingDef.BaseMass * part.count * efficiency / 100;
+                        //mass += part.thingDef.BaseMass * part.count * BetterWeight.defaultEfficiency / 100;
+                        mass += part.thingDef.BaseMass * part.count * 80 / 100;
                     }
-                }
+                } 
             }
             catch (Exception e)
             {
@@ -74,7 +97,8 @@ namespace ArchieVBetterWeight
             {
                 if (thing.costStuffCount != 0)
                 {
-                    mass += thing.costStuffCount * efficiency / 100;
+                    //mass += thing.costStuffCount * BetterWeight.defaultEfficiency / 100;
+                    mass += thing.costStuffCount * 80 / 100;
                 }
             }
             catch (Exception e)
@@ -87,27 +111,6 @@ namespace ArchieVBetterWeight
             return mass;
         }
 
-
-        /// <summary>
-        /// Round the mass based on the settings above
-        /// </summary>
-        /// <param name="initMass"></param>
-        /// <returns></returns>
-        public static float RoundMass(float initMass)
-        {
-            float newMass = new float();
-
-            if (roundToNearest5)
-            {
-                newMass = (float) Math.Round(initMass * 5, numberOfDPToRoundTo) / 5;
-            }
-            else
-            {
-                newMass = (float) Math.Round(initMass, numberOfDPToRoundTo);
-            }
-
-            return newMass;
-        }
     }
 
     public static class StartupClass
@@ -132,98 +135,181 @@ namespace ArchieVBetterWeight
         static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
         {
             //todo reimplement check to see if its 1 or 0. You should probs put it in ShouldPatch() tho
-            
-            //quich check to make sure thing isn't null
-            if (req.Thing == null) return true;
-            if (req.Thing.def == null) return true;
-            
+
+            // Quick check to make sure thing isn't null
+            if (req.Thing == null) { return true; }
+            if (req.Thing.def == null) { return true; }
+            if (req.StatBases == null) { return true; }
+
             if (PatchTools.ShouldPatch(req.Thing.def))
             {
+                bool addMass = true;
                 for (var index = 0; index < req.StatBases.Count; index++) //iterate through all stats in request
                 {
                     var stat = req.StatBases[index]; //get current stat
                     if (stat.stat.label == "mass") //check if it is the mass
                     {
                         var mass = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
-                        Log.Message("Changed mass for " + req.Def.defName + " to " + mass);
-                        req.StatBases[index].value = mass; //set mass of item here
+                        //float mass = PatchTools.CalculateMass(req.Thing.def);
+                        //float mass = 6969;
+                        //Log.Error("Changed mass for " + req.Def.defName + " to " + mass, true);
+                        req.StatBases[index].value = mass; //set mass of item here    
+                        addMass = false;
                     }
+                }
+                if ((addMass && req.Thing.def.costList != null)
+                    ||
+                    (addMass && req.Thing.def.costStuffCount != 0))
+                {
+                    if (req.Thing.def.costList == null)
+                    {
+                        return true;
+                    }
+                    if (req.Thing.def.costList.Count == 0)
+                    {
+                        return true;
+                    }
+
+                    StatModifier statModifier = new StatModifier
+                    {
+                        stat = StatDefOf.Mass,
+                        value = PatchTools.CalculateMass(req.Thing.def)
+                    };
+
+                    req.StatBases.Add(statModifier);
+
+                    Log.Message("Added mass for " + req.Thing.def.defName);
                 }
             }
 
             return true; //returns true so function runs with modifed StatReq
         }
+        
+    }
 
-        public class BetterWeight : ModBase
+    public class BetterWeight : ModBase
+    {
+        public override string ModIdentifier => "ArchieV.BetterWeight";
+
+
+        public static SettingHandle<int> defaultEfficiency;
+        public static SettingHandle<int> numberOfDPToRoundTo;
+        public static SettingHandle<bool> roundToNearest5;
+        public static Dictionary<ThingDef, float> thingDefEffeciency = new Dictionary<ThingDef, float>();
+
+
+        //private List<ThingCategory> shouldPatch = new List<ThingCategory> { ThingCategory.Building };
+
+        public override void DefsLoaded()
         {
-            public override string ModIdentifier => "ArchieV.BetterWeight";
+            defaultEfficiency = Settings.GetHandle<int>(
+                "BetterWeight_efficiency",
+                "Efficiency",
+                "What percentage of the weight goes into the building and what percentage is waste\n" +
+                "Range = 1% - 300%",
+                75,
+                Validators.IntRangeValidator(1, 300));
+
+            numberOfDPToRoundTo = Settings.GetHandle<int>(
+                "BetterWeight_numberOfDPToRoundTo",
+                "Number of decimal points to round to",
+                "How many decimal points to round the calculated value to\n" +
+                "Range = 0 - 2 decimal places",
+                0,
+                Validators.IntRangeValidator(0, 2));
+
+            roundToNearest5 = Settings.GetHandle<bool>(
+                "BetterWeight_roundToNearest5",
+                "Round to the nearest 5",
+                "Should calculated masses be rounded to the nearest 5 of the number of DP specified?\n" +
+                "Eg:\n" +
+                "1.24 to 2DP and with this true will round to 1.25\n" +
+                "234.37 to 0DP with this true will round to 235",
+                false);
+
+            thingDefEffeciency = Settings.GetHandle<Dictionary<ThingDef, float>> (
+                "BetterWeight_thingDefEfficiency",
+                "Thing / Efficiency",
+                "The name of the thing / The efficiency of that thing",
+                BetterWeight.thingDefEffeciency);
+
+        }
 
 
-            public SettingHandle<int> efficiency;
-            private SettingHandle<int> numberOfDPToRoundTo;
-            private SettingHandle<bool> roundToNearest5;
-
-            //private List<ThingCategory> shouldPatch = new List<ThingCategory> { ThingCategory.Building };
-
-            public override void DefsLoaded()
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public BetterWeight()
+        {
+            try
             {
-                efficiency = Settings.GetHandle<int>(
-                    "BetterWeight_efficiency",
-                    "Efficiency",
-                    "What percentage of the weight goes into the building and what percentage is waste\n" +
-                    "Range = 1% - 300%",
-                    75,
-                    Validators.IntRangeValidator(1, 300));
+                Log.Message(DateTime.Now.ToString("h:mm:ss tt") + " Loading BetterWeight...");
 
-                numberOfDPToRoundTo = Settings.GetHandle<int>(
-                    "BetterWeight_numberOfDPToRoundTo",
-                    "Number of decimal points to round to",
-                    "How many decimal points to round the calculated value to\n" +
-                    "Range = 0 - 2 decimal places",
-                    0,
-                    Validators.IntRangeValidator(0, 2));
+                DefsLoaded();
 
-                roundToNearest5 = Settings.GetHandle<bool>(
-                    "BetterWeight_roundToNearest5",
-                    "Round to the nearest 5",
-                    "Should calculated masses be rounded to the nearest 5 of the number of DP specified?\n" +
-                    "Eg:\n" +
-                    "1.24 to 2DP and with this true will round to 1.25\n" +
-                    "234.37 to 0DP with this true will round to 235",
-                    false);
+                thingDefEffeciency = generateDefaultDictionary();
+
+                Log.Message(DateTime.Now.ToString("h:mm:ss tt") + " Finished loading BetterWeight");
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+                Log.Error("Failed to load BetterWeight.");
+                Log.Error("Please leave a bug report at https://github.com/ArchieV1/BetterWeight");
+            }
+        }
+
+        public void LogAllBuildingWeights(Dictionary<ThingDef, float> allBuildings)
+        {
+            //Log.Warning("START logAllBuildingsWeights");
+            foreach (KeyValuePair<ThingDef, float> pair in allBuildings)
+            {
+                Log.Message(
+                    pair.Key.defName + "\n" +
+                    pair.Key.BaseMass + "BaseMass" + "\n" +
+                    pair.Value.ToString() + "NewMass");
             }
 
+            //Log.Message("END ItHasMass");
+        }
 
-            /// <summary>
-            /// Constructor
-            /// </summary>
-            public BetterWeight()
+        public Dictionary<ThingDef, float> generateDefaultDictionary()
+        {
+            List<ThingDef> things = (List<ThingDef>) DefDatabase<ThingDef>.AllDefs;
+            Dictionary<ThingDef, float> dictionary = new Dictionary<ThingDef, float>();
+
+            foreach (ThingDef thing in things)
             {
-                try
+                if (thing.category == ThingCategory.Building && thing.BaseMass == 1)
                 {
-                    Log.Message(DateTime.Now.ToString("h:mm:ss tt") + "Loading BetterWeight...");
-
-                    DefsLoaded();
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e.ToString());
+                    dictionary.Add(thing, BetterWeight.defaultEfficiency);
                 }
             }
+            return dictionary;
+        }
+    }
 
-            public void LogAllBuildingWeights(Dictionary<ThingDef, float> allBuildings)
+    public class ThingDefFloatList : SettingHandleConvertible
+    {
+        public Dictionary<ThingDef, float> thingDefEffeciency = new Dictionary<ThingDef, float>();
+
+        public override void FromString(string settingValue)
+        {
+            string[] thing = settingValue.Split('|');
+
+            thingDefEffeciency.Add(ThingDef.Named(thing[0]), (float) Math.Round(float.Parse(thing[1]), 2));
+        }
+
+        public override string ToString()
+        {
+            string list = "";
+
+            foreach(KeyValuePair<ThingDef, float> pair in thingDefEffeciency)
             {
-                //Log.Warning("START logAllBuildingsWeights");
-                foreach (KeyValuePair<ThingDef, float> pair in allBuildings)
-                {
-                    Log.Message(
-                        pair.Key.defName + "\n" +
-                        pair.Key.BaseMass + "BaseMass" + "\n" +
-                        pair.Value.ToString() + "NewMass");
-                }
-
-                //Log.Message("END ItHasMass");
+                list += pair.Key.defName + " | " + pair.Value.ToString() + "\n";
             }
+
+            return list;
         }
     }
 }
