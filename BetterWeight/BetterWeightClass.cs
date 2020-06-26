@@ -154,6 +154,14 @@ namespace ArchieVBetterWeight
 
                 if (!containsMass)
                 {
+                    if (req.Thing.def.costList == null)
+                    {
+                        return true;
+                    }
+                    if (req.Thing.def.costList.Count == 0)
+                    {
+                        return true;
+                    }
                     StatModifier i = new StatModifier();
                     i.stat = StatDefOf.Mass;
                     i.value = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
