@@ -124,55 +124,6 @@ namespace ArchieVBetterWeight
         }
     }
 
-    [HarmonyPatch(typeof(StatWorker))]
-    [HarmonyPatch(nameof(StatWorker.GetValueUnfinalized))]
-    static class StatWorker_GetValueUnfinalized_Patch
-    {
-        //runs before GetValueUnfinalized
-        static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
-        {
-            //todo reimplement check to see if its 1 or 0. You should probs put it in ShouldPatch() tho
-
-            //quich check to make sure thing isn't null
-            if (req.Thing == null) return true;
-            if (req.Thing.def == null) return true;
-
-            // if (PatchTools.ShouldPatch(req.Thing.def))
-            // {
-
-            var containsMass = false;
-            for (var index = 0; index < req.StatBases.Count; index++) //iterate through all stats in request
-            {
-                var stat = req.StatBases[index]; //get current stat
-                if (stat.stat.label == "mass") //check if it is the mass
-                {
-                    var mass = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
-                    //Log.Message("Changed mass for " + req.Def.defName + " to " + mass);
-                    req.StatBases[index].value = mass; //set mass of item here
-                    containsMass = true;
-                }
-
-                if (!containsMass)
-                {
-                    if (req.Thing.def.costList == null)
-                    {
-                        return true;
-                    }
-                    if (req.Thing.def.costList.Count == 0)
-                    {
-                        return true;
-                    }
-                    StatModifier i = new StatModifier();
-                    i.stat = StatDefOf.Mass;
-                    i.value = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
-                    req.StatBases.Add(i);
-                    Log.Message("Added mass for " + req.Thing.def.defName);
-                }
-            }
-        //}
-        return true; //returns true so function runs with modifed StatReq
-    }
-
     public class BetterWeight : ModBase
     {
         public override string ModIdentifier => "ArchieV.BetterWeight";
@@ -246,4 +197,53 @@ namespace ArchieVBetterWeight
     }
 }
 
+
+[HarmonyPatch(typeof(StatWorker))]
+[HarmonyPatch(nameof(StatWorker.GetValueUnfinalized))]
+static class StatWorker_GetValueUnfinalized_Patch
+{
+    //runs before GetValueUnfinalized
+    static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
+    {
+        //todo reimplement check to see if its 1 or 0. You should probs put it in ShouldPatch() tho
+
+        //quich check to make sure thing isn't null
+        if (req.Thing == null) return true;
+        if (req.Thing.def == null) return true;
+        if (req.StatBases == null) return true;
+
+        var containsMass = false;
+        for (var index = 0; index < req.StatBases.Count; index++) //iterate through all stats in request
+        {
+            var stat = req.StatBases[index]; //get current stat
+            if (stat.stat.label == "mass") //check if it is the mass
+            {
+                var mass = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
+                //Log.Message("Changed mass for " + req.Def.defName + " to " + mass);
+                req.StatBases[index].value = mass; //set mass of item here
+                containsMass = true;
+            }
+
+            if (!containsMass)
+            {
+                if (req.Thing.def.costList == null)
+                {
+                    return true;
+                }
+
+                if (req.Thing.def.costList.Count == 0)
+                {
+                    return true;
+                }
+
+                StatModifier i = new StatModifier();
+                i.stat = StatDefOf.Mass;
+                i.value = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
+                req.StatBases.Add(i);
+                Log.Message("Added mass for " + req.Thing.def.defName);
+            }
+        }
+
+        return true; //returns true so function runs with modifed StatReq
+    }
 }
