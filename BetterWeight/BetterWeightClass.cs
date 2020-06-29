@@ -42,26 +42,8 @@ namespace ArchieVBetterWeight
         /// <returns>true if it should be patched</returns>
         public static bool ShouldPatch(ThingDef thing)
         {
-            if (thing.category == ThingCategory.Building)
-            { return true; }
+            if (BetterWeight.listToPatch.Contains(thing)) { return true; }
             else { return false; }
-            
-            //return BetterWeight.thingDefEffeciency.ContainsKey(thing);
-
-            // if its a building that costs either materials or stuffmaterials
-            if (((thing.category == ThingCategory.Building && thing.costList != null) ||
-                 (thing.category == ThingCategory.Building && thing.costStuffCount != 0))
-                && thing.BaseMass == 1)
-            {
-                //log.message(thing.category.tostring());
-                //log.message(thingcategory.building.tostring());
-
-                return true;
-            }
-            else
-            {
-                return false;
-            }
         }
 
         /// <summary>
@@ -150,8 +132,6 @@ namespace ArchieVBetterWeight
                     if (stat.stat.label == "mass") //check if it is the mass
                     {
                         var mass = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
-                        //float mass = PatchTools.CalculateMass(req.Thing.def);
-                        //float mass = 6969;
                         //Log.Error("Changed mass for " + req.Def.defName + " to " + mass, true);
                         req.StatBases[index].value = mass; //set mass of item here    
                         addMass = false;
@@ -196,6 +176,7 @@ namespace ArchieVBetterWeight
         public static SettingHandle<int> numberOfDPToRoundTo;
         public static SettingHandle<bool> roundToNearest5;
         public static Dictionary<ThingDef, float> thingDefEffeciency = new Dictionary<ThingDef, float>();
+        public static List<ThingDef> listToPatch = new List<ThingDef>();
 
 
         //private List<ThingCategory> shouldPatch = new List<ThingCategory> { ThingCategory.Building };
@@ -232,6 +213,18 @@ namespace ArchieVBetterWeight
                 "Thing / Efficiency",
                 "The name of the thing / The efficiency of that thing",
                 BetterWeight.thingDefEffeciency);
+
+            listToPatch = Settings.GetHandle<List<ThingDef>>(
+                "BetterWeight_ListToPatch",
+                "To Patch",
+                "The list of things to be assigned a new calculated mass,",
+                null);
+
+            // Set default list to patch
+            if (listToPatch == null)
+            {
+                listToPatch = generateDefaultListToPatch();
+            }
 
         }
 
@@ -287,6 +280,21 @@ namespace ArchieVBetterWeight
             }
             return dictionary;
         }
+
+        public List<ThingDef> generateDefaultListToPatch()
+        {
+            List<ThingDef> things = (List<ThingDef>) DefDatabase<ThingDef>.AllDefs;
+            List<ThingDef> toPatch = new List<ThingDef>();
+
+            foreach (ThingDef thing in things)
+            {
+                if (thing.category == ThingCategory.Building && thing.BaseMass == 1)
+                {
+                    toPatch.Add(thing);
+                }
+            }
+            return toPatch;
+        }
     }
 
     public class ThingDefFloatList : SettingHandleConvertible
@@ -309,6 +317,33 @@ namespace ArchieVBetterWeight
                 list += pair.Key.defName + " | " + pair.Value.ToString() + "\n";
             }
 
+            return list;
+        }
+    }
+
+    public class ThingDefList : SettingHandleConvertible
+    {
+        public List<ThingDef> things = new List<ThingDef>();
+
+        public override bool ShouldBeSaved
+        {
+            get { return things.Count > 0; }
+        }
+
+        public override void FromString(string settingValue)
+        {
+            // Add ThingDef with passed name
+            things.Add(ThingDef.Named(settingValue));
+        }
+
+        public override string ToString()
+        {
+            string list = "";
+
+            foreach (ThingDef thing in things)
+            {
+                list += thing.defName + "\n";
+            }
             return list;
         }
     }
