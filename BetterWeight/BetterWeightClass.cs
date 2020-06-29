@@ -176,7 +176,7 @@ namespace ArchieVBetterWeight
         public static Dictionary<ThingDef, float> thingDefEffeciency = new Dictionary<ThingDef, float>();
         public static List<ThingDef> listToPatch = new List<ThingDef>();
 
-
+        
         //private List<ThingCategory> shouldPatch = new List<ThingCategory> { ThingCategory.Building };
 
         public override void DefsLoaded()
@@ -212,6 +212,12 @@ namespace ArchieVBetterWeight
                 "The name of the thing / The efficiency of that thing",
                 BetterWeight.thingDefEffeciency);
 
+            // Set default dict to edit values individually
+            if (thingDefEffeciency == null)
+            {
+                thingDefEffeciency = generateDefaultDictionary();
+            }
+
             listToPatch = Settings.GetHandle<List<ThingDef>>(
                 "BetterWeight_ListToPatch",
                 "To Patch",
@@ -223,7 +229,6 @@ namespace ArchieVBetterWeight
             {
                 listToPatch = generateDefaultListToPatch();
             }
-
         }
 
 
@@ -238,7 +243,10 @@ namespace ArchieVBetterWeight
 
                 DefsLoaded();
 
-                thingDefEffeciency = generateDefaultDictionary();
+                // Make settings invisible in the settings menu
+                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListToPatch").NeverVisible = true;
+                Settings.GetHandle<Dictionary<ThingDef, float>>("BetterWeight_thingDefEfficiency").NeverVisible = true;
+
 
                 Log.Message(DateTime.Now.ToString("h:mm:ss tt") + " Finished loading BetterWeight");
             }
