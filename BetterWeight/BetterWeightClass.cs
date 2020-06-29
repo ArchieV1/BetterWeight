@@ -35,8 +35,7 @@ namespace ArchieVBetterWeight
         }
 
         /// <summary>
-        /// If it's:
-        /// [(A building AND needs materials) OR (A building AND needs stuffMaterials)] AND mass = 1
+        /// If passed value is in listToPatch it should be patched with new weight.
         /// </summary>
         /// <param name="thing">The thing to be checked if it needs patching</param>
         /// <returns>true if it should be patched</returns>
@@ -49,8 +48,8 @@ namespace ArchieVBetterWeight
         /// <summary>
         /// Calculate mass recusively. NO ROUNDING IS DONE HERE
         /// </summary>
-        /// <param name="thing"></param>
-        /// <returns>The mass of the passed value</returns>
+        /// <param name="thing">The thing to have its new value calculated</param>
+        /// <returns>The (new) mass of the passed value</returns>
         public static float CalculateMass(ThingDef thing)
         {
             //Log.Warning("Start CalculateMass");
@@ -70,10 +69,6 @@ namespace ArchieVBetterWeight
             {
                 Log.Error(e.ToString());
             }
-
-            // If has costStuffCount eg, can be made of wood/steel/granite
-            // Wayyyyy too hard to calculate it properly so just assume mass of material = 1
-            // This assumptions means wooden doors weigh more than their parts total but stone weigh a bit less
             try
             {
                 if (thing.costStuffCount != 0)
@@ -111,7 +106,14 @@ namespace ArchieVBetterWeight
     [HarmonyPatch(nameof(StatWorker.GetValueUnfinalized))]
     static class StatWorker_GetValueUnfinalized_Patch
     {
-        //runs before GetValueUnfinalized
+        /// <summary>
+        /// Runs before GetValueUnfinalized
+        /// With nullcheck, if requested value of mass does not exist (So it is using default) then add a mass value and calculate it
+        /// </summary>
+        /// <param name="__result"></param>
+        /// <param name="req"></param>
+        /// <param name="applyPostProcess"></param>
+        /// <returns></returns>
         static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
         {
             //todo reimplement check to see if its 1 or 0. You should probs put it in ShouldPatch() tho
