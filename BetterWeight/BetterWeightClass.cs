@@ -8,6 +8,7 @@ using HarmonyLib;
 using System.Reflection;
 using ArchieVBetterWeight;
 using RimWorld;
+using UnityEngine;
 
 namespace ArchieVBetterWeight
 {
@@ -178,9 +179,6 @@ namespace ArchieVBetterWeight
         public static Dictionary<ThingDef, float> thingDefEffeciency = new Dictionary<ThingDef, float>();
         public static List<ThingDef> listToPatch = new List<ThingDef>();
 
-        
-        //private List<ThingCategory> shouldPatch = new List<ThingCategory> { ThingCategory.Building };
-
         public override void DefsLoaded()
         {
             defaultEfficiency = Settings.GetHandle<int>(
@@ -295,6 +293,7 @@ namespace ArchieVBetterWeight
             }
             return toPatch;
         }
+
     }
 
     public class ThingDefFloatList : SettingHandleConvertible
@@ -345,6 +344,109 @@ namespace ArchieVBetterWeight
                 list += thing.defName + "\n";
             }
             return list;
+        }
+    }
+
+    public class BetterWeightSettingsValues : ModSettings
+    {
+        /// <summary>
+        /// Take the settings from the HugsLib settings section
+        /// </summary>
+        public List<ThingDef> listToPatch = BetterWeight.listToPatch;
+        public Dictionary<ThingDef, float> thingDefEffeciency = BetterWeight.thingDefEffeciency;
+    }
+
+    public class BetterWeightSettingsMenu : Mod
+    {
+
+        private Vector2 ScrollPosition;
+
+        /// <summary>
+        /// References the settings init'd above
+        /// </summary>
+        BetterWeightSettingsValues settings;
+
+        /// <summary>
+        /// Constructor to resolve the settings
+        /// </summary>
+        /// <param name="content"></param>
+        public BetterWeightSettingsMenu(ModContentPack content) : base(content)
+        {
+            settings = GetSettings<BetterWeightSettingsValues>();
+        }
+
+        /// <summary>
+        /// The GUI settings page
+        /// </summary>
+        /// <param name="inRect"></param>
+        public override void DoSettingsWindowContents(Rect inRect)
+        {
+            base.DoSettingsWindowContents(inRect: inRect);
+            //Rect topRect = inRect.TopPart(0.2f);
+            Rect MainRect = inRect.BottomPart(1f);
+
+            // Generate the Dicitonary of things that could be patched
+            // If they already are its (Thing, true) else (Thing, false)
+            Dictionary<ThingDef, bool> possibleToPatch = new Dictionary<ThingDef, bool>();
+            List<ThingDef> allDefs = (List<ThingDef>)DefDatabase<ThingDef>.AllDefs;
+            foreach (ThingDef def in allDefs)
+            {
+                if (def.category == ThingCategory.Building && (def.costList != null || def.costStuffCount != 0))
+                {
+                    if (BetterWeight.listToPatch.Contains(def))
+                    {
+                        possibleToPatch.Add(def, true);
+                    }
+                    else
+                    {
+                        possibleToPatch.Add(def, false);
+                    }
+                }
+            }
+
+
+            Widgets.BeginScrollView(outRect: MainRect, scrollPosition: ref ScrollPosition, viewRect: new Rect(x: 0f, y: 0f, width : MainRect.width, height: possibleToPatch.Count * 32f));
+
+            float num = 5f;
+            foreach (KeyValuePair<ThingDef, bool> pair in possibleToPatch)
+            {
+                ThingDef thing = pair.Key;
+                bool enabled = pair.Value;
+                bool selected = false;
+
+                Rect rowRect = new Rect(x: 5, y: num, width: MainRect.width-30, height: 30);
+                Rect leftRowRect = rowRect.LeftPart(0.9f);
+                Rect rightRowRect = rowRect.RightPart(0.1f);
+
+                //new Rect(x: 0, y: 0, width: rowRect.width, height: rowRect.height);
+
+                //Widgets.Label(rect: leftRowRect, label: pair.Key.defName);
+                //Widgets.Label(rect: rightRowRect, label: pair.Value.ToString());
+
+                Widgets.CheckboxLabeled(rect: rowRect, pair.Key.defName, checkOn: enabled);
+
+                Widgets.ButtonText(rightRowRect, label: pair.Value.ToString());
+                Widgets.DefLabelWithIcon(rect: leftRowRect, def : pair.Key);
+                num += 32;
+            }
+
+
+            Widgets.EndScrollView();
+            
+
+           
+
+
+            base.DoSettingsWindowContents(inRect);
+        }
+
+        /// <summary>
+        /// Override SettingsCategory to show up in the list of settings.
+        /// </summary>
+        /// <returns>The translated mod name</returns>
+        public override string SettingsCategory()
+        {
+            return "BetterWeight - Patch List";
         }
     }
 }
