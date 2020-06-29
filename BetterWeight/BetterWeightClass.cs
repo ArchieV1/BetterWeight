@@ -189,6 +189,7 @@ namespace ArchieVBetterWeight
                 75,
                 Validators.IntRangeValidator(1, 300));
 
+
             numberOfDPToRoundTo = Settings.GetHandle<int>(
                 "BetterWeight_numberOfDPToRoundTo",
                 "Number of decimal points to round to",
@@ -196,6 +197,7 @@ namespace ArchieVBetterWeight
                 "Range = 0 - 2 decimal places",
                 0,
                 Validators.IntRangeValidator(0, 2));
+
 
             roundToNearest5 = Settings.GetHandle<bool>(
                 "BetterWeight_roundToNearest5",
@@ -206,28 +208,28 @@ namespace ArchieVBetterWeight
                 "234.37 to 0DP with this true will round to 235",
                 false);
 
-            thingDefEffeciency = Settings.GetHandle<Dictionary<ThingDef, float>> (
-                "BetterWeight_thingDefEfficiency",
-                "Thing / Efficiency",
-                "The name of the thing / The efficiency of that thing",
-                BetterWeight.thingDefEffeciency);
-
-            // Set default dict to edit values individually
-            if (thingDefEffeciency == null)
-            {
-                thingDefEffeciency = generateDefaultDictionary();
-            }
 
             listToPatch = Settings.GetHandle<List<ThingDef>>(
                 "BetterWeight_ListToPatch",
                 "To Patch",
                 "The list of things to be assigned a new calculated mass,",
                 null);
-
             // Set default list to patch
             if (listToPatch == null)
             {
                 listToPatch = generateDefaultListToPatch();
+            }
+
+
+            thingDefEffeciency = Settings.GetHandle<Dictionary<ThingDef, float>>(
+                "BetterWeight_thingDefEfficiency",
+                "Thing / Efficiency",
+                "The name of the thing / The efficiency of that thing",
+                BetterWeight.thingDefEffeciency);
+            // Set default dict to edit values individually
+            if (thingDefEffeciency == null)
+            {
+                thingDefEffeciency = generateDefaultDictionary();
             }
         }
 
@@ -258,35 +260,25 @@ namespace ArchieVBetterWeight
             }
         }
 
-        public void LogAllBuildingWeights(Dictionary<ThingDef, float> allBuildings)
-        {
-            //Log.Warning("START logAllBuildingsWeights");
-            foreach (KeyValuePair<ThingDef, float> pair in allBuildings)
-            {
-                Log.Message(
-                    pair.Key.defName + "\n" +
-                    pair.Key.BaseMass + "BaseMass" + "\n" +
-                    pair.Value.ToString() + "NewMass");
-            }
-
-            //Log.Message("END ItHasMass");
-        }
-
+        /// <summary>
+        /// Generate list of all things to be patched with the efficiency per item. NOT IN USE
+        /// </summary>
+        /// <returns>Dictionary of ThingDef to efficiency</returns>
         public Dictionary<ThingDef, float> generateDefaultDictionary()
         {
-            List<ThingDef> things = (List<ThingDef>) DefDatabase<ThingDef>.AllDefs;
             Dictionary<ThingDef, float> dictionary = new Dictionary<ThingDef, float>();
 
-            foreach (ThingDef thing in things)
+            foreach (ThingDef thing in BetterWeight.listToPatch)
             {
-                if (thing.category == ThingCategory.Building && thing.BaseMass == 1)
-                {
-                    dictionary.Add(thing, BetterWeight.defaultEfficiency);
-                }
+                dictionary.Add(thing, BetterWeight.defaultEfficiency);
             }
             return dictionary;
         }
 
+        /// <summary>
+        /// Generate list of ThingDefs that are the default. Category = Building && baseMass = 1
+        /// </summary>
+        /// <returns>List of things that should have a new mass calculated</returns>
         public List<ThingDef> generateDefaultListToPatch()
         {
             List<ThingDef> things = (List<ThingDef>) DefDatabase<ThingDef>.AllDefs;
