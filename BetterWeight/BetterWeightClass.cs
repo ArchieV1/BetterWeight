@@ -62,8 +62,7 @@ namespace ArchieVBetterWeight
                 {
                     foreach (ThingDefCountClass part in thing.costList)
                     {
-                        //mass += part.thingDef.BaseMass * part.count * BetterWeight.defaultEfficiency / 100;
-                        mass += part.thingDef.BaseMass * part.count * 80 / 100;
+                        mass += part.thingDef.BaseMass * part.count * BetterWeight.defaultEfficiency / 100f;
                     }
                 } 
             }
@@ -79,8 +78,7 @@ namespace ArchieVBetterWeight
             {
                 if (thing.costStuffCount != 0)
                 {
-                    //mass += thing.costStuffCount * BetterWeight.defaultEfficiency / 100;
-                    mass += thing.costStuffCount * 80 / 100;
+                    mass += thing.costStuffCount * (BetterWeight.defaultEfficiency / 100f);
                 }
             }
             catch (Exception e)
