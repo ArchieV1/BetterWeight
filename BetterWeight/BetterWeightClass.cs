@@ -281,8 +281,8 @@ namespace ArchieVBetterWeight
                 Settings.GetHandle<Dictionary<ThingDef, float>>("BetterWeight_thingDefEfficiency").NeverVisible = true;
 
                 // Make the settings save when game closes
-                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListToPatch").OnValueChanged(listToPatch);
-                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListNotToPatch").OnValueChanged(listNotToPatch);
+                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListToPatch").HasUnsavedChanges = true;
+                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListNotToPatch").HasUnsavedChanges = true;
 
                 if (BetterWeight.listNotToPatch == null)
                 {
