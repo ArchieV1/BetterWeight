@@ -118,35 +118,48 @@ namespace ArchieVBetterWeight
         /// <returns></returns>
         static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
         {
-            //todo reimplement check to see if its 1 or 0. You should probs put it in ShouldPatch() tho
-
             // Quick check to make sure thing isn't null
-            if (req.Thing == null) { return true; }
-            if (req.Thing.def == null) { return true; }
-            if (req.StatBases == null) { return true; }
+            if (req.Thing == null)
+            {
+                return true;
+            }
+
+            if (req.Thing.def == null)
+            {
+                return true;
+            }
+
+            if (req.StatBases == null)
+            {
+                return true;
+            }
 
             if (PatchTools.ShouldPatch(req.Thing.def))
             {
-                bool addMass = true;
+                bool needsMass = true;
                 for (var index = 0; index < req.StatBases.Count; index++) //iterate through all stats in request
                 {
                     var stat = req.StatBases[index]; //get current stat
                     if (stat.stat.label == "mass") //check if it is the mass
                     {
-                        var mass = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
-                        //Log.Error("Changed mass for " + req.Def.defName + " to " + mass, true);
-                        req.StatBases[index].value = mass; //set mass of item here    
-                        addMass = false;
+                        var new_mass = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
+                        if (stat.value != 0 && stat.value != 1)
+                        {
+                            Log.Message("Changed mass for " + req.Def.defName + " to " + new_mass, true);
+                            req.StatBases[index].value = new_mass; //set mass of item here    
+                        }
+
+                        needsMass = false;
                     }
                 }
-                if ((addMass && req.Thing.def.costList != null)
-                    ||
-                    (addMass && req.Thing.def.costStuffCount != 0))
+
+                if (needsMass)
                 {
                     if (req.Thing.def.costList == null)
                     {
                         return true;
                     }
+
                     if (req.Thing.def.costList.Count == 0)
                     {
                         return true;
@@ -166,7 +179,6 @@ namespace ArchieVBetterWeight
 
             return true; //returns true so function runs with modifed StatReq
         }
-        
     }
 
     public class BetterWeight : ModBase
