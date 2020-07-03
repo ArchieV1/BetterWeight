@@ -26,11 +26,12 @@ namespace ArchieVBetterWeight
 
             if (BetterWeight.roundToNearest5)
             {
-                newMass = (float)Math.Round(initMass * 5, BetterWeight.numberOfDPToRoundTo) / 5;
+                newMass = (float) Math.Round(initMass * 5f, BetterWeight.numberOfDPToRoundTo, MidpointRounding.AwayFromZero) / 5f;
+                newMass = (float)Math.Round(newMass, BetterWeight.numberOfDPToRoundTo);
             }
             else
             {
-                newMass = (float)Math.Round(initMass, BetterWeight.numberOfDPToRoundTo);
+                newMass = (float)Math.Round(initMass, BetterWeight.numberOfDPToRoundTo, MidpointRounding.AwayFromZero);
             }
 
             return newMass;
@@ -235,7 +236,7 @@ namespace ArchieVBetterWeight
             }
 
             listNotToPatch = Settings.GetHandle<List<ThingDef>>(
-                "BetterWeight_listNotToPatch",
+                "BetterWeight_ListNotToPatch",
                 "To NOT Patch",
                 "The list of things to NOT be assigned a new calculated mass,",
                 null);
@@ -276,7 +277,12 @@ namespace ArchieVBetterWeight
 
                 // Make settings invisible in the settings menu
                 Settings.GetHandle<List<ThingDef>>("BetterWeight_ListToPatch").NeverVisible = true;
+                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListNotToPatch").NeverVisible = true;
                 Settings.GetHandle<Dictionary<ThingDef, float>>("BetterWeight_thingDefEfficiency").NeverVisible = true;
+
+                // Make the settings save when game closes
+                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListToPatch").OnValueChanged(listToPatch);
+                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListNotToPatch").OnValueChanged(listNotToPatch);
 
                 if (BetterWeight.listNotToPatch == null)
                 {
@@ -354,29 +360,14 @@ namespace ArchieVBetterWeight
             BetterWeight.listNotToPatch = BetterWeight.listNotToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
             BetterWeight.listToPatch = BetterWeight.listToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
         }
-    }
 
-    public class ThingDefFloatList : SettingHandleConvertible
-    {
-        public Dictionary<ThingDef, float> thingDefEffeciency = new Dictionary<ThingDef, float>();
-
-        public override void FromString(string settingValue)
+        /// <summary>
+        /// Save both BetterWeight_ListToPatch and BetterWeight_ListNotToPatch to the HugsLib settings file
+        /// </summary>
+        public void SaveListToPatchANDListToNotPatch()
         {
-            string[] thing = settingValue.Split('|');
-
-            thingDefEffeciency.Add(ThingDef.Named(thing[0]), (float) Math.Round(float.Parse(thing[1]), 2));
-        }
-
-        public override string ToString()
-        {
-            string list = "";
-
-            foreach(KeyValuePair<ThingDef, float> pair in thingDefEffeciency)
-            {
-                list += pair.Key.defName + " | " + pair.Value.ToString() + "\n";
-            }
-
-            return list;
+            Settings.GetHandle<List<ThingDef>>("BetterWeight_ListToPatch").ForceSaveChanges();
+            Settings.GetHandle<List<ThingDef>>("BetterWeight_ListNotToPatch").ForceSaveChanges();
         }
     }
 
@@ -391,8 +382,11 @@ namespace ArchieVBetterWeight
 
         public override void FromString(string settingValue)
         {
-            // Add ThingDef with passed name
-            things.Add(ThingDef.Named(settingValue));
+            String[] stringThings = settingValue.Split('\n');
+            foreach(String str in stringThings)
+            {
+                things.Add(ThingDef.Named(str));
+            }
         }
 
         public override string ToString()
@@ -460,11 +454,14 @@ namespace ArchieVBetterWeight
             base.DoSettingsWindowContents(inRect: inRect);
 
 
-            Rect topRect = inRect.TopPart(0.2f);
-            Rect MainRect = inRect.BottomPart(0.8f);          
+            Rect topRect = inRect.TopPart(0.13f);
+            Rect MainRect = inRect.BottomPart(0.87f);
 
-            Rect leftSide = MainRect.LeftPart(0.4f);
-            Rect rightSide = MainRect.RightPart(0.4f);
+            Widgets.Label(topRect.TopHalf(), "For changes to take effect you must reload your save\n" +
+                "More settings can be found at the bottom of the Mod Settings list");
+
+            Rect leftSide = MainRect.LeftPart(0.48f);
+            Rect rightSide = MainRect.RightPart(0.48f);
 
             // Left side of selection window
             float num = 30f;
@@ -483,7 +480,19 @@ namespace ArchieVBetterWeight
                     {
                         Rect rowRect = new Rect(x: 5, y: num, width: viewRectLeft.width - 10, height: 30);
                         Widgets.DrawHighlightIfMouseover(rect: rowRect);
+
+                        // The name and icon of the thing
                         Widgets.DefLabelWithIcon(rowRect, thing);
+
+                        // Show the number on the right side of the name
+                        Rect rightPartRow = rowRect.RightPartPixels(90);
+                        Rect massRect = rightPartRow.LeftPart(pct: 0.45f);
+                        Rect weightRect = rightPartRow.RightPart(pct: 0.55f);
+
+                        // Old Mass
+                        Widgets.Label(massRect, thing.BaseMass.ToString());
+                        // Weight
+                        Widgets.Label(weightRect, PatchTools.RoundMass(PatchTools.CalculateMass(thing)).ToString());
 
                         // Logic for button clicked
                         if (Widgets.ButtonInvisible(butRect: rowRect))
@@ -529,7 +538,19 @@ namespace ArchieVBetterWeight
                     {
                         Rect rowRect = new Rect(x: 5, y: num, width: viewRectRight.width - 10, height: 30);
                         Widgets.DrawHighlightIfMouseover(rect: rowRect);
+
                         Widgets.DefLabelWithIcon(rowRect, thing);
+
+                        // Show the number on the right side of the name
+                        Rect rightPartRow = rowRect.RightPartPixels(90);
+                        Rect massRect = rightPartRow.LeftPart(pct: 0.45f);
+                        Rect weightRect = rightPartRow.RightPart(pct: 0.55f);
+
+                        // Old Mass
+                        Widgets.Label(massRect, thing.BaseMass.ToString());
+                        // Weight
+                        Widgets.Label(weightRect, PatchTools.RoundMass(PatchTools.CalculateMass(thing)).ToString());
+
 
                         // Logic for thing clicked
                         if (Widgets.ButtonInvisible(butRect: rowRect))
@@ -584,6 +605,9 @@ namespace ArchieVBetterWeight
                 Log.Error(e.ToString());
             }
 
+            // Save the settings to file
+
+
             base.DoSettingsWindowContents(inRect);
         }
 
@@ -597,17 +621,4 @@ namespace ArchieVBetterWeight
         }
 
     }
-
-    public class ThingDefBool
-    {
-        public ThingDef thingDef;
-        public bool boolVar;
-
-        public ThingDefBool(ThingDef thingDef, bool boolVar)
-        {
-            this.thingDef = thingDef;
-            this.boolVar = boolVar;
-        }
-    }
-
 }
