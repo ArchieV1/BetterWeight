@@ -281,6 +281,11 @@ namespace ArchieVBetterWeight
             }
         }
 
+        private void InitializeSettings()
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Generate list of all things to be patched with the efficiency per item. NOT IN USE
         /// </summary>
