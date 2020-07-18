@@ -158,18 +158,18 @@ namespace ArchieVBetterWeight
             base.DoSettingsWindowContents(inRect: inRect);
 
 
-            Rect topRect = inRect.TopPart(0.13f);
-            Rect MainRect = inRect.BottomPart(0.87f);
+            Rect topRect = inRect.TopPart(0.10f);
+            Rect MainRect = inRect.BottomPart(0.90f).TopPart(0.80f);
 
             Widgets.Label(topRect.TopHalf(), "For changes to take effect you must reload your save");
 
-            Rect leftSide = MainRect.LeftPart(0.48f);
-            Rect rightSide = MainRect.RightPart(0.48f);
+            Rect leftSide = MainRect.LeftPart(0.46f);
+            Rect rightSide = MainRect.RightPart(0.46f);
 
             // ----------------------------------------------------------------------------------------------------------------
             //                                      Left side of selection window
             // ----------------------------------------------------------------------------------------------------------------
-            float num = 30f;
+            float num = 0f;
 
             Rect viewRectLeft = new Rect(x: 0f, y: 0f, width: leftSide.width - 30, height: Settings.ToPatch.Count * 30f);
 
@@ -216,7 +216,7 @@ namespace ArchieVBetterWeight
             // ----------------------------------------------------------------------------------------------------------------
             //                                      Right side of selection window
             // ----------------------------------------------------------------------------------------------------------------
-            num = 30f;
+            num = 0f;
 
             Rect viewRectRight = new Rect(x: 0f, y: 0f, width: rightSide.width - 30, height: Settings.NotToPatch.Count * 30f);
 
