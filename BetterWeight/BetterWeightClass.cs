@@ -153,7 +153,7 @@ namespace ArchieVBetterWeight
         public override void DoSettingsWindowContents(Rect inRect)
         {
             // Sort the lists alphabetically
-            BetterWeight.SortlistNotToPatchlistToPatch();
+            SortlistNotToPatchlistToPatch();
 
             base.DoSettingsWindowContents(inRect: inRect);
 
@@ -161,13 +161,14 @@ namespace ArchieVBetterWeight
             Rect topRect = inRect.TopPart(0.13f);
             Rect MainRect = inRect.BottomPart(0.87f);
 
-            Widgets.Label(topRect.TopHalf(), "For changes to take effect you must reload your save\n" +
-                "More settings can be found at the bottom of the Mod Settings list");
+            Widgets.Label(topRect.TopHalf(), "For changes to take effect you must reload your save");
 
             Rect leftSide = MainRect.LeftPart(0.48f);
             Rect rightSide = MainRect.RightPart(0.48f);
 
-            // Left side of selection window
+            // ----------------------------------------------------------------------------------------------------------------
+            //                                      Left side of selection window
+            // ----------------------------------------------------------------------------------------------------------------
             float num = 30f;
 
             Rect viewRectLeft = new Rect(x: 0f, y: 0f, width: leftSide.width - 30, height: Settings.ToPatch.Count * 30f);
@@ -180,52 +181,41 @@ namespace ArchieVBetterWeight
             {
                 foreach (ThingDef thing in Settings.ToPatch)
                 {
-                    try
+                    Rect rowRect = new Rect(x: 5, y: num, width: viewRectLeft.width - 10, height: 30);
+                    Widgets.DrawHighlightIfMouseover(rect: rowRect);
+
+                    // The name and icon of the thing
+                    Widgets.DefLabelWithIcon(rowRect, thing);
+
+                    // Show the number on the right side of the name
+                    Rect rightPartRow = rowRect.RightPartPixels(90);
+                    Rect massRect = rightPartRow.LeftPart(pct: 0.45f);
+                    Rect weightRect = rightPartRow.RightPart(pct: 0.55f);
+
+                    // Old Mass
+                    Widgets.Label(massRect, thing.BaseMass.ToString());
+                    // Weight
+                    Widgets.Label(weightRect, RoundMass(CalculateMass(thing)).ToString());
+
+                    // Logic for button clicked
+                    if (Widgets.ButtonInvisible(butRect: rowRect))
                     {
-                        Rect rowRect = new Rect(x: 5, y: num, width: viewRectLeft.width - 10, height: 30);
-                        Widgets.DrawHighlightIfMouseover(rect: rowRect);
-
-                        // The name and icon of the thing
-                        Widgets.DefLabelWithIcon(rowRect, thing);
-
-                        // Show the number on the right side of the name
-                        Rect rightPartRow = rowRect.RightPartPixels(90);
-                        Rect massRect = rightPartRow.LeftPart(pct: 0.45f);
-                        Rect weightRect = rightPartRow.RightPart(pct: 0.55f);
-
-                        // Old Mass
-                        Widgets.Label(massRect, thing.BaseMass.ToString());
-                        // Weight
-                        Widgets.Label(weightRect, RoundMass(CalculateMass(thing)).ToString());
-
-                        // Logic for button clicked
-                        if (Widgets.ButtonInvisible(butRect: rowRect))
-                        {
-                            leftSelected = thing;
-                        }
-
-                        if (leftSelected == thing)
-                        {
-                            Widgets.DrawHighlightSelected(rowRect);
-                        }
-
-                        num += 30f;
+                        leftSelected = thing;
                     }
-                    catch (Exception e)
+
+                    if (leftSelected == thing)
                     {
-                        Log.Error(e.ToString());
-                        Log.Error("broke on " + thing.defName);
-                        foreach (ThingDef def in Settings.ToPatch)
-                        {
-                            Log.Error(def.defName);
-                        }
+                        Widgets.DrawHighlightSelected(rowRect);
                     }
+
+                    num += 30f;
                 }
             }
             Widgets.EndScrollView();
-            // End of left side
 
-            //Right side of selection window
+            // ----------------------------------------------------------------------------------------------------------------
+            //                                      Right side of selection window
+            // ----------------------------------------------------------------------------------------------------------------
             num = 30f;
 
             Rect viewRectRight = new Rect(x: 0f, y: 0f, width: rightSide.width - 30, height: Settings.NotToPatch.Count * 30f);
@@ -238,54 +228,44 @@ namespace ArchieVBetterWeight
             {
                 foreach (ThingDef thing in Settings.NotToPatch)
                 {
-                    try
+                    Rect rowRect = new Rect(x: 5, y: num, width: viewRectRight.width - 10, height: 30);
+                    Widgets.DrawHighlightIfMouseover(rect: rowRect);
+
+                    Widgets.DefLabelWithIcon(rowRect, thing);
+
+                    // Show the number on the right side of the name
+                    Rect rightPartRow = rowRect.RightPartPixels(90);
+                    Rect massRect = rightPartRow.LeftPart(pct: 0.45f);
+                    Rect weightRect = rightPartRow.RightPart(pct: 0.55f);
+
+                    // Old Mass
+                    Widgets.Label(massRect, thing.BaseMass.ToString());
+                    // Weight
+                    Widgets.Label(weightRect, RoundMass(CalculateMass(thing)).ToString());
+
+
+                    // Logic for thing clicked
+                    if (Widgets.ButtonInvisible(butRect: rowRect))
                     {
-                        Rect rowRect = new Rect(x: 5, y: num, width: viewRectRight.width - 10, height: 30);
-                        Widgets.DrawHighlightIfMouseover(rect: rowRect);
-
-                        Widgets.DefLabelWithIcon(rowRect, thing);
-
-                        // Show the number on the right side of the name
-                        Rect rightPartRow = rowRect.RightPartPixels(90);
-                        Rect massRect = rightPartRow.LeftPart(pct: 0.45f);
-                        Rect weightRect = rightPartRow.RightPart(pct: 0.55f);
-
-                        // Old Mass
-                        Widgets.Label(massRect, thing.BaseMass.ToString());
-                        // Weight
-                        Widgets.Label(weightRect, RoundMass(CalculateMass(thing)).ToString());
-
-
-                        // Logic for thing clicked
-                        if (Widgets.ButtonInvisible(butRect: rowRect))
-                        {
-                            rightSelected = thing;
-                        }
-
-                        if (rightSelected == thing)
-                        {
-                            Widgets.DrawHighlightSelected(rowRect);
-                        }
-                        num += 30f;
+                        rightSelected = thing;
                     }
-                    catch (Exception e)
+
+                    if (rightSelected == thing)
                     {
-                        Log.Error("broke on " + thing.defName);
-                        foreach (ThingDef def in Settings.NotToPatch)
-                        {
-                            Log.Error(def.defName);
-                        }
+                        Widgets.DrawHighlightSelected(rowRect);
                     }
+                    num += 30f;
                 }
             }
             Widgets.EndScrollView();
-            // End of right side
 
-            // Central buttons
+            // ----------------------------------------------------------------------------------------------------------------
+            //                                                  Central buttons
+            // ----------------------------------------------------------------------------------------------------------------
             try
             {
                 // Right arrow
-                // Moving from BetterWeight to Default Mass
+                // Moving from ToPatch to NotToPatch
                 if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).RightPart(0.5f), tex: TexUI.ArrowTexRight) && leftSelected != null)
                 {
                     // Add and remove them from correct lists
@@ -295,7 +275,7 @@ namespace ArchieVBetterWeight
                     leftSelected = null;
                 }
                 // Left arrow
-                // Moving from Default Mass to BetterWeight
+                // Moving from NotToPatch to ToPatch
                 if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).LeftPart(0.5f), tex: TexUI.ArrowTexLeft) && rightSelected != null)
                 {
                     Settings.ToPatch.Add(rightSelected);
@@ -319,9 +299,7 @@ namespace ArchieVBetterWeight
                 Log.Error(e.ToString());
             }
 
-            // Save the settings to file
             base.DoSettingsWindowContents(inRect);
-            //settings.Write();
         }
 
         /// <summary>
@@ -332,6 +310,7 @@ namespace ArchieVBetterWeight
         {
             return "BetterWeight";
         }
+
 
         /// ---------------------------------------------------------------------------------------------------------------------
         ///                                             Patch functions
