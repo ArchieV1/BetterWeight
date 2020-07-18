@@ -8,7 +8,8 @@ using System.Linq;
 
 namespace ArchieVBetterWeight
 {
-
+    [HarmonyPatch(typeof(StatWorker))]
+    [HarmonyPatch(nameof(StatWorker.GetValueUnfinalized))]
     static class StatWorker_GetValueUnfinalized_Patch
     {
         /// <summary>
@@ -19,10 +20,9 @@ namespace ArchieVBetterWeight
         /// <param name="req"></param>
         /// <param name="applyPostProcess"></param>
         /// <returns></returns>
-        [HarmonyPatch(typeof(StatWorker))]
-        [HarmonyPatch(nameof(StatWorker.GetValueUnfinalized))]
         static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
         {
+            Log.Error("HERER");
             // Quick check to make sure thing isn't null
             if (req.Thing == null)
             {
@@ -91,6 +91,7 @@ namespace ArchieVBetterWeight
         }
     }
 
+    [StaticConstructorOnStartup]
     internal class BetterWeight : Mod
     {
         public static BetterWeight instance;
@@ -117,10 +118,11 @@ namespace ArchieVBetterWeight
                 instance = this;
 
                 // If settings are null; fix them
-                SetDefaultSettingsIfNeeded();
+                //SetDefaultSettingsIfNeeded();
 
                 Harmony harmony = new Harmony("uk.ArchieV.projects.modding.Rimworld.BetterWeight");
                 harmony.PatchAll();
+                Log.Message(harmony.Id);
 
                 Log.Message(DateTime.Now.ToString("h:mm:ss tt") + " Finished loading BetterWeight");
             }
@@ -159,7 +161,7 @@ namespace ArchieVBetterWeight
 
 
             Rect topRect = inRect.TopPart(0.10f);
-            Rect MainRect = inRect.BottomPart(0.90f).TopPart(0.80f);
+            Rect MainRect = inRect.BottomPart(0.90f).TopPart(0.75f);
 
             Widgets.Label(topRect.TopHalf(), "For changes to take effect you must reload your save");
 
@@ -292,6 +294,51 @@ namespace ArchieVBetterWeight
                 SetListsToDefault();
             }
 
+            // ----------------------------------------------------------------------------------------------------------------
+            //                                              Bottom Options
+            // ----------------------------------------------------------------------------------------------------------------
+            Rect otherSettingsRect = inRect.BottomPart(0.90f).BottomPart(0.20f);
+
+            // Left side
+            Rect otherSettingsLeft = otherSettingsRect.LeftPart(0.45f);
+
+            // numberOfDPToRoundTo. Int with min and max val
+            Rect numDPRect = otherSettingsLeft.TopHalf();
+            Rect numDPLabel = numDPRect.LeftHalf();
+            Rect numDPSlider = numDPRect.RightHalf();
+
+            Widgets.Label(numDPLabel, "Number of Decimal Places to Round Masses to");
+            instance.Settings.numberOfDPToRoundTo = (int)Math.Round(Widgets.HorizontalSlider(numDPSlider, instance.Settings.numberOfDPToRoundTo, 0f, 2f, false, null, "0", "2", -1), MidpointRounding.AwayFromZero);
+
+            // roundToNearest5. Bool
+            Rect Nearest5Rect = otherSettingsLeft.BottomHalf();
+            Rect Nearest5Label = Nearest5Rect.LeftHalf();
+            Rect Nearest5Toggle = Nearest5Rect.RightHalf();
+
+            Widgets.CheckboxLabeled(Nearest5Rect, "Round to nearest 5", ref instance.Settings.roundToNearest5);
+
+            // Right side
+            Rect otherSettingsRight = otherSettingsRect.RightPart(0.45f);
+
+            // defaultEfficiency. Float with min and max val
+            Rect efficiencyRect = otherSettingsRight.TopHalf();
+            Rect efficiencyLabel = efficiencyRect.LeftHalf();
+            Rect efficiencySlider = efficiencyRect.RightHalf();
+
+            Widgets.Label(efficiencyLabel, "Efficiency\n" +
+                "A higher number means a higher mass");
+            instance.Settings.defaultEfficiency = Widgets.HorizontalSlider(efficiencySlider, instance.Settings.defaultEfficiency, 5, 300, false, instance.Settings.defaultEfficiency.ToString(), "5", "300", 5);
+
+            // Reset extra settings
+            Rect resetExtraButton = otherSettingsRight.BottomHalf().BottomPart(0.5f).RightPart(0.8f);
+            Widgets.Label(resetExtraButton, "Reset other settings (NOT LISTS)");
+            Widgets.DrawHighlightIfMouseover(resetExtraButton);
+
+            if (Widgets.ButtonInvisible(butRect: resetExtraButton))
+            {
+                ResetOtherSettings();
+            }
+
             base.DoSettingsWindowContents(inRect);
         }
 
@@ -359,7 +406,7 @@ namespace ArchieVBetterWeight
             {
                 if (thing.costStuffCount != 0)
                 {
-                    mass += thing.costStuffCount * (instance.settings.defaultEfficiency / 100f);
+                    mass += thing.costStuffCount * (instance.Settings.defaultEfficiency / 100f);
                 }
             }
             catch (Exception e)
@@ -380,7 +427,7 @@ namespace ArchieVBetterWeight
         public static bool ShouldPatch(ThingDef thing)
         {
             if (instance.Settings.ToPatch.Contains(thing)) { return true; }
-            else { return false; }
+            else { Log.Message(thing.defName);  return false; }
         }
 
         /// ---------------------------------------------------------------------------------------------------------------------
@@ -420,13 +467,19 @@ namespace ArchieVBetterWeight
         /// </summary>
         public static void ResetSettings()
         {
-            instance.Settings.defaultEfficiency = 65f;
-            instance.Settings.roundToNearest5 = true;
-            instance.Settings.numberOfDPToRoundTo = 2;
-
+            ResetOtherSettings();
             SetListsToDefault();
         }
 
+        /// <summary>
+        /// Reset default defaultEfficiency, roundToNearest5 and numberOfDPToRoundTo
+        /// </summary>
+        public static void ResetOtherSettings()
+        {
+            instance.Settings.defaultEfficiency = 65f;
+            instance.Settings.roundToNearest5 = true;
+            instance.Settings.numberOfDPToRoundTo = 2;
+        }
         /// <summary>
         /// If settings are null for some reason (First install the lists will be blank) then set them
         /// </summary>
