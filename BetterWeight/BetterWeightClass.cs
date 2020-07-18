@@ -262,41 +262,34 @@ namespace ArchieVBetterWeight
             // ----------------------------------------------------------------------------------------------------------------
             //                                                  Central buttons
             // ----------------------------------------------------------------------------------------------------------------
-            try
+            // Right arrow
+            // Moving from ToPatch to NotToPatch
+            if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).RightPart(0.5f), tex: TexUI.ArrowTexRight) && leftSelected != null)
             {
-                // Right arrow
-                // Moving from ToPatch to NotToPatch
-                if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).RightPart(0.5f), tex: TexUI.ArrowTexRight) && leftSelected != null)
-                {
-                    // Add and remove them from correct lists
-                    Settings.NotToPatch.Add(leftSelected);
-                    Settings.ToPatch.Remove(leftSelected);
+                // Add and remove them from correct lists
+                Settings.NotToPatch.Add(leftSelected);
+                Settings.ToPatch.Remove(leftSelected);
 
-                    leftSelected = null;
-                }
-                // Left arrow
-                // Moving from NotToPatch to ToPatch
-                if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).LeftPart(0.5f), tex: TexUI.ArrowTexLeft) && rightSelected != null)
-                {
-                    Settings.ToPatch.Add(rightSelected);
-                    Settings.NotToPatch.Remove(rightSelected);
-
-                    rightSelected = null;
-                }
-
-                // Reset button
-                Rect resetButton = MainRect.BottomPart(pct: 0.7f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(0.1f);
-                Widgets.Label(resetButton, "Reset");
-                Widgets.DrawHighlightIfMouseover(resetButton);
-
-                if (Widgets.ButtonInvisible(butRect: resetButton))
-                {
-                    SetListsToDefault();
-                }
+                leftSelected = null;
             }
-            catch (Exception e)
+            // Left arrow
+            // Moving from NotToPatch to ToPatch
+            if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).LeftPart(0.5f), tex: TexUI.ArrowTexLeft) && rightSelected != null)
             {
-                Log.Error(e.ToString());
+                Settings.ToPatch.Add(rightSelected);
+                Settings.NotToPatch.Remove(rightSelected);
+
+                rightSelected = null;
+            }
+
+            // Reset button
+            Rect resetButton = MainRect.BottomPart(pct: 0.7f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(0.1f);
+            Widgets.Label(resetButton, "Reset");
+            Widgets.DrawHighlightIfMouseover(resetButton);
+
+            if (Widgets.ButtonInvisible(butRect: resetButton))
+            {
+                SetListsToDefault();
             }
 
             base.DoSettingsWindowContents(inRect);
