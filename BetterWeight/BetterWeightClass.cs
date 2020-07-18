@@ -5,7 +5,6 @@ using HarmonyLib;
 using RimWorld;
 using UnityEngine;
 using System.Linq;
-using RimWorld.Planet;
 
 namespace ArchieVBetterWeight
 {
@@ -134,66 +133,10 @@ namespace ArchieVBetterWeight
 
         }
 
-        /// <summary>
-        /// Generate list of ThingDefs that are the default. Category = Building && baseMass = 1
-        /// </summary>
-        /// <returns>List of things that should have a new mass calculated</returns>
-        public static List<ThingDef> generateDefaultListToPatch()
-        {
-            List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
-            List<ThingDef> toPatch = new List<ThingDef>();
 
-            foreach (ThingDef thing in things)
-            {
-                if (thing.category == ThingCategory.Building && thing.BaseMass == 1 && (thing.costList != null || thing.costStuffCount != 0))
-                {
-                    toPatch.Add(thing);
-                }
-            }
-            return toPatch;
-            
-        }
-
-        public static List<ThingDef> generateDefaultListToNotPatch()
-        {
-            List<ThingDef> things = (List<ThingDef>)DefDatabase<ThingDef>.AllDefs;
-            List<ThingDef> toNotPatch = new List<ThingDef>();
-
-            foreach (ThingDef thing in things)
-            {
-                if (thing.category == ThingCategory.Building && thing.BaseMass != 1 && (thing.costList != null || thing.costStuffCount != 0))
-                {
-                    toNotPatch.Add(thing);
-                }
-            }
-            return toNotPatch;
-        }
-
-        // WARNING
-        // Not sure this works
-        public static void SetListsToDefault()
-        {
-            instance.Settings.ToPatch = generateDefaultListToPatch();
-            instance.Settings.NotToPatch = generateDefaultListToNotPatch();
-        }
-
-        public static void SortlistNotToPatchlistToPatch()
-        {
-            // Order the lists by name if they have any stuff in the lists
-            if (!instance.Settings.NotToPatch.NullOrEmpty())
-            {
-                instance.Settings.NotToPatch = instance.Settings.NotToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
-            }
-
-            if (!instance.Settings.ToPatch.NullOrEmpty())
-            {
-                instance.Settings.ToPatch = instance.Settings.ToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
-            }
-        }
-
-        /// <summary>
-        /// Do the settings menu
-        /// </summary>
+        /// ---------------------------------------------------------------------------------------------------------------------
+        ///                                             Settings menu
+        /// ---------------------------------------------------------------------------------------------------------------------
 
 
         // Control the scroll bars and which is currently selected
@@ -390,6 +333,10 @@ namespace ArchieVBetterWeight
             return "BetterWeight";
         }
 
+        /// ---------------------------------------------------------------------------------------------------------------------
+        ///                                             Patch functions
+        /// ---------------------------------------------------------------------------------------------------------------------
+
         /// <summary>
         /// Round the mass based on the settings above
         /// </summary>
@@ -410,17 +357,6 @@ namespace ArchieVBetterWeight
             }
 
             return newMass;
-        }
-
-        /// <summary>
-        /// If passed value is in listToPatch it should be patched with new weight.
-        /// </summary>
-        /// <param name="thing">The thing to be checked if it needs patching</param>
-        /// <returns>true if it should be patched</returns>
-        public static bool ShouldPatch(ThingDef thing)
-        {
-            if (instance.Settings.ToPatch.Contains(thing)) { return true; }
-            else { return false; }
         }
 
         /// <summary>
@@ -465,6 +401,49 @@ namespace ArchieVBetterWeight
         }
 
         /// <summary>
+        /// If passed value is in listToPatch it should be patched with new weight.
+        /// </summary>
+        /// <param name="thing">The thing to be checked if it needs patching</param>
+        /// <returns>true if it should be patched</returns>
+        public static bool ShouldPatch(ThingDef thing)
+        {
+            if (instance.Settings.ToPatch.Contains(thing)) { return true; }
+            else { return false; }
+        }
+
+        /// ---------------------------------------------------------------------------------------------------------------------
+        ///                                             Settings functions
+        /// ---------------------------------------------------------------------------------------------------------------------
+
+        // WARNING
+        // Not sure this works
+        /// <summary>
+        /// Set ToPatch and NotToPatch to their default lists
+        /// </summary>
+        public static void SetListsToDefault()
+        {
+            instance.Settings.ToPatch = generateDefaultListToPatch();
+            instance.Settings.NotToPatch = generateDefaultListToNotPatch();
+        }
+
+        /// <summary>
+        /// Sort ToPatch and NotToPatch alphabetically
+        /// </summary>
+        public static void SortlistNotToPatchlistToPatch()
+        {
+            // Order the lists by name if they have any stuff in the lists
+            if (!instance.Settings.NotToPatch.NullOrEmpty())
+            {
+                instance.Settings.NotToPatch = instance.Settings.NotToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
+            }
+
+            if (!instance.Settings.ToPatch.NullOrEmpty())
+            {
+                instance.Settings.ToPatch = instance.Settings.ToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
+            }
+        }
+        
+        /// <summary>
         /// Reset all settings to default
         /// </summary>
         public static void ResetSettings()
@@ -501,6 +480,46 @@ namespace ArchieVBetterWeight
             {
                 instance.Settings.numberOfDPToRoundTo = 2;
             }
+        }
+
+        /// <summary>
+        /// Generate list of ThingDefs that are, by default, to be patched.
+        /// Category = Building && baseMass = 1 && (has either costList or costStuffCount)
+        /// </summary>
+        /// <returns>List of thingDefs that should have a new mass calculated by default</returns>
+        public static List<ThingDef> generateDefaultListToPatch()
+        {
+            List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
+            List<ThingDef> toPatch = new List<ThingDef>();
+
+            foreach (ThingDef thing in things)
+            {
+                if (thing.category == ThingCategory.Building && thing.BaseMass == 1 && (thing.costList != null || thing.costStuffCount != 0))
+                {
+                    toPatch.Add(thing);
+                }
+            }
+            return toPatch;
+
+        }
+
+        /// <summary>
+        /// Generates list of ThingDefs that are, by default, not to be patched.
+        /// </summary>
+        /// <returns>List of thingDefs that should not have a new mass calculated by default</returns>
+        public static List<ThingDef> generateDefaultListToNotPatch()
+        {
+            List<ThingDef> things = (List<ThingDef>)DefDatabase<ThingDef>.AllDefs;
+            List<ThingDef> toNotPatch = new List<ThingDef>();
+
+            foreach (ThingDef thing in things)
+            {
+                if (thing.category == ThingCategory.Building && thing.BaseMass != 1 && (thing.costList != null || thing.costStuffCount != 0))
+                {
+                    toNotPatch.Add(thing);
+                }
+            }
+            return toNotPatch;
         }
     }
 
