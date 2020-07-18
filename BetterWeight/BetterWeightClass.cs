@@ -1,112 +1,15 @@
 ﻿using System;
-using System.IO;
 using System.Collections.Generic;
 using Verse;
-using HugsLib;
-using HugsLib.Settings;
 using HarmonyLib;
-using System.Reflection;
-using ArchieVBetterWeight;
 using RimWorld;
 using UnityEngine;
 using System.Linq;
+using RimWorld.Planet;
 
 namespace ArchieVBetterWeight
 {
-    public class PatchTools
-    {
-        /// <summary>
-        /// Round the mass based on the settings above
-        /// </summary>
-        /// <param name="initMass"></param>
-        /// <returns></returns>
-        public static float RoundMass(float initMass)
-        {
-            float newMass = new float();
 
-            if (BetterWeight.roundToNearest5)
-            {
-                newMass = (float) Math.Round(initMass * 5f, BetterWeight.numberOfDPToRoundTo, MidpointRounding.AwayFromZero) / 5f;
-                newMass = (float)Math.Round(newMass, BetterWeight.numberOfDPToRoundTo);
-            }
-            else
-            {
-                newMass = (float)Math.Round(initMass, BetterWeight.numberOfDPToRoundTo, MidpointRounding.AwayFromZero);
-            }
-
-            return newMass;
-        }
-
-        /// <summary>
-        /// If passed value is in listToPatch it should be patched with new weight.
-        /// </summary>
-        /// <param name="thing">The thing to be checked if it needs patching</param>
-        /// <returns>true if it should be patched</returns>
-        public static bool ShouldPatch(ThingDef thing)
-        {
-            if (BetterWeight.listToPatch.Contains(thing)) { return true; }
-            else { return false; }
-        }
-
-        /// <summary>
-        /// Calculate mass recusively. NO ROUNDING IS DONE HERE
-        /// </summary>
-        /// <param name="thing">The thing to have its new value calculated</param>
-        /// <returns>The (new) mass of the passed value</returns>
-        public static float CalculateMass(ThingDef thing)
-        {
-            //Log.Warning("Start CalculateMass");
-            float mass = 0.00f;
-            try
-
-            {
-                if (thing.costList != null)
-                {
-                    foreach (ThingDefCountClass part in thing.costList)
-                    {
-                        mass += part.thingDef.BaseMass * part.count * BetterWeight.defaultEfficiency / 100f;
-                    }
-                } 
-            }
-            catch (Exception e)
-            {
-                Log.Error(e.ToString());
-            }
-            try
-            {
-                if (thing.costStuffCount != 0)
-                {
-                    mass += thing.costStuffCount * (BetterWeight.defaultEfficiency / 100f);
-                }
-            }
-            catch (Exception e)
-            {
-                Log.Message(e.ToString());
-            }
-
-            //Log.Message("END CalculateMass");
-            //Log.Error(thing.defName + thing.costStuffCount);
-            return mass;
-        }
-
-    }
-
-    public static class StartupClass
-    {
-        static StartupClass() //Constructor
-        {
-            Log.Message("ArchieVBetterWeight");
-            Harmony harmony = new Harmony("uk.ArchieV.projects.modding.Rimworld.BetterWeight");
-            //Harmony.DEBUG = true;
-
-            harmony.PatchAll();
-
-            //BetterWeight betterWeight = new BetterWeight();
-        }
-    }
-
-    [HarmonyPatch(typeof(StatWorker))]
-    [HarmonyPatch(nameof(StatWorker.GetValueUnfinalized))]
     static class StatWorker_GetValueUnfinalized_Patch
     {
         /// <summary>
@@ -117,6 +20,8 @@ namespace ArchieVBetterWeight
         /// <param name="req"></param>
         /// <param name="applyPostProcess"></param>
         /// <returns></returns>
+        [HarmonyPatch(typeof(StatWorker))]
+        [HarmonyPatch(nameof(StatWorker.GetValueUnfinalized))]
         static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
         {
             // Quick check to make sure thing isn't null
@@ -135,15 +40,16 @@ namespace ArchieVBetterWeight
                 return true;
             }
 
-            if (PatchTools.ShouldPatch(req.Thing.def))
+            if (BetterWeight.ShouldPatch(req.Thing.def))
             {
+                Log.Message("Should patch");
                 bool needsMass = true;
                 for (var index = 0; index < req.StatBases.Count; index++) //iterate through all stats in request
                 {
                     var stat = req.StatBases[index]; //get current stat
                     if (stat.stat.label == "mass") //check if it is the mass
                     {
-                        var new_mass = PatchTools.RoundMass(PatchTools.CalculateMass(req.Thing.def));
+                        var new_mass = BetterWeight.RoundMass(BetterWeight.CalculateMass(req.Thing.def));
                         if (stat.value != 0 && stat.value != 1)
                         {
                             Log.Message("Changed mass for " + req.Def.defName + " to " + new_mass, true);
@@ -169,7 +75,7 @@ namespace ArchieVBetterWeight
                     StatModifier statModifier = new StatModifier
                     {
                         stat = StatDefOf.Mass,
-                        value = PatchTools.CalculateMass(req.Thing.def)
+                        value = BetterWeight.CalculateMass(req.Thing.def)
                     };
 
                     req.StatBases.Add(statModifier);
@@ -177,117 +83,45 @@ namespace ArchieVBetterWeight
                     Log.Message("Added mass for " + req.Thing.def.defName);
                 }
             }
+            else
+            {
+                Log.Error("DOnt patch");
+            }
 
             return true; //returns true so function runs with modifed StatReq
         }
     }
 
-    public class BetterWeight : ModBase
+    internal class BetterWeight : Mod
     {
-        public override string ModIdentifier => "ArchieV.BetterWeight";
+        public static BetterWeight instance;
+        public BetterWeightSettings settings;
 
-        public static IEnumerable<ThingDef> toPatchList { get; internal set; }
-
-        public static SettingHandle<int> defaultEfficiency;
-        public static SettingHandle<int> numberOfDPToRoundTo;
-        public static SettingHandle<bool> roundToNearest5;
-        public static Dictionary<ThingDef, float> thingDefEffeciency = new Dictionary<ThingDef, float>();
-        public static List<ThingDef> listToPatch = new List<ThingDef>();
-        public static List<ThingDef> listNotToPatch = new List<ThingDef>();
-        public override void DefsLoaded()
+        // NOTE
+        // This is "Settings" not "settings". ALWAYS USE THIS ONE
+        internal BetterWeightSettings Settings
         {
-            defaultEfficiency = Settings.GetHandle<int>(
-                "BetterWeight_efficiency",
-                "Efficiency",
-                "What percentage of the weight goes into the building and what percentage is waste\n" +
-                "Range = 1% - 300%",
-                75,
-                Validators.IntRangeValidator(1, 300));
-
-
-            numberOfDPToRoundTo = Settings.GetHandle<int>(
-                "BetterWeight_numberOfDPToRoundTo",
-                "Number of decimal points to round to",
-                "How many decimal points to round the calculated value to\n" +
-                "Range = 0 - 2 decimal places",
-                0,
-                Validators.IntRangeValidator(0, 2));
-
-
-            roundToNearest5 = Settings.GetHandle<bool>(
-                "BetterWeight_roundToNearest5",
-                "Round to the nearest 5",
-                "Should calculated masses be rounded to the nearest 5 of the number of DP specified?\n" +
-                "Eg:\n" +
-                "1.24 to 2DP and with this true will round to 1.25\n" +
-                "234.37 to 0DP with this true will round to 235",
-                false);
-
-
-            listToPatch = Settings.GetHandle<List<ThingDef>>(
-                "BetterWeight_ListToPatch",
-                "To Patch",
-                "The list of things to be assigned a new calculated mass,",
-                null);
-            // Set default list to patch
-            if (listToPatch == null)
-            {
-                listToPatch = generateDefaultListToPatch();
-            }
-
-            listNotToPatch = Settings.GetHandle<List<ThingDef>>(
-                "BetterWeight_ListNotToPatch",
-                "To NOT Patch",
-                "The list of things to NOT be assigned a new calculated mass,",
-                null);
-            // Set default list to patch
-            if (listNotToPatch == null)
-            {
-                listNotToPatch = generateDefaultListToNotPatch();
-            }
-
-            thingDefEffeciency = Settings.GetHandle<Dictionary<ThingDef, float>>(
-                "BetterWeight_thingDefEfficiency",
-                "Thing / Efficiency",
-                "The name of the thing / The efficiency of that thing",
-                BetterWeight.thingDefEffeciency);
-            // Set default dict to edit values individually
-            if (thingDefEffeciency == null)
-            {
-                thingDefEffeciency = generateDefaultDictionary();
-            }
+            get => settings ?? (settings = GetSettings<BetterWeightSettings>());
+            set => settings = value;
         }
-
-        public override void SettingsChanged()
-        {
-            base.SettingsChanged();
-        }
-
 
         /// <summary>
         /// Constructor
         /// </summary>
-        public BetterWeight()
+        /// <param name="content"></param>
+        public BetterWeight(ModContentPack content) : base(content)
         {
             try
-            {
+            { 
                 Log.Message(DateTime.Now.ToString("h:mm:ss tt") + " Loading BetterWeight...");
 
-                DefsLoaded();
+                instance = this;
 
-                // Make settings invisible in the settings menu
-                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListToPatch").NeverVisible = true;
-                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListNotToPatch").NeverVisible = true;
-                Settings.GetHandle<Dictionary<ThingDef, float>>("BetterWeight_thingDefEfficiency").NeverVisible = true;
+                // If settings are null; fix them
+                SetDefaultSettingsIfNeeded();
 
-                // Make the settings save when game closes
-                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListToPatch").HasUnsavedChanges = true;
-                Settings.GetHandle<List<ThingDef>>("BetterWeight_ListNotToPatch").HasUnsavedChanges = true;
-
-                if (BetterWeight.listNotToPatch == null)
-                {
-                    listNotToPatch = generateDefaultListToNotPatch();
-                }
+                Harmony harmony = new Harmony("uk.ArchieV.projects.modding.Rimworld.BetterWeight");
+                harmony.PatchAll();
 
                 Log.Message(DateTime.Now.ToString("h:mm:ss tt") + " Finished loading BetterWeight");
             }
@@ -297,26 +131,7 @@ namespace ArchieVBetterWeight
                 Log.Error("Failed to load BetterWeight.");
                 Log.Error("Please leave a bug report at https://github.com/ArchieV1/BetterWeight");
             }
-        }
 
-        private void InitializeSettings()
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Generate list of all things to be patched with the efficiency per item. NOT IN USE
-        /// </summary>
-        /// <returns>Dictionary of ThingDef to efficiency</returns>
-        public Dictionary<ThingDef, float> generateDefaultDictionary()
-        {
-            Dictionary<ThingDef, float> dictionary = new Dictionary<ThingDef, float>();
-
-            foreach (ThingDef thing in BetterWeight.listToPatch)
-            {
-                dictionary.Add(thing, BetterWeight.defaultEfficiency);
-            }
-            return dictionary;
         }
 
         /// <summary>
@@ -325,7 +140,7 @@ namespace ArchieVBetterWeight
         /// <returns>List of things that should have a new mass calculated</returns>
         public static List<ThingDef> generateDefaultListToPatch()
         {
-            List<ThingDef> things = (List<ThingDef>) DefDatabase<ThingDef>.AllDefs;
+            List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
             List<ThingDef> toPatch = new List<ThingDef>();
 
             foreach (ThingDef thing in things)
@@ -354,93 +169,39 @@ namespace ArchieVBetterWeight
             return toNotPatch;
         }
 
+        // WARNING
+        // Not sure this works
+        public static void SetListsToDefault()
+        {
+            instance.Settings.ToPatch = generateDefaultListToPatch();
+            instance.Settings.NotToPatch = generateDefaultListToNotPatch();
+        }
+
         public static void SortlistNotToPatchlistToPatch()
         {
-            // Order the lists by name
-            BetterWeight.listNotToPatch = BetterWeight.listNotToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
-            BetterWeight.listToPatch = BetterWeight.listToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
-        }
-
-        /// <summary>
-        /// Save both BetterWeight_ListToPatch and BetterWeight_ListNotToPatch to the HugsLib settings file
-        /// </summary>
-        public void SaveListToPatchANDListToNotPatch()
-        {
-            Settings.GetHandle<List<ThingDef>>("BetterWeight_ListToPatch").ForceSaveChanges();
-            Settings.GetHandle<List<ThingDef>>("BetterWeight_ListNotToPatch").ForceSaveChanges();
-        }
-    }
-
-    public class ThingDefList : SettingHandleConvertible
-    {
-        public List<ThingDef> things = new List<ThingDef>();
-
-        public override bool ShouldBeSaved
-        {
-            get { return things.Count > 0; }
-        }
-
-        public override void FromString(string settingValue)
-        {
-            String[] stringThings = settingValue.Split('\n');
-            foreach(String str in stringThings)
+            // Order the lists by name if they have any stuff in the lists
+            if (!instance.Settings.NotToPatch.NullOrEmpty())
             {
-                things.Add(ThingDef.Named(str));
+                instance.Settings.NotToPatch = instance.Settings.NotToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
+            }
+
+            if (!instance.Settings.ToPatch.NullOrEmpty())
+            {
+                instance.Settings.ToPatch = instance.Settings.ToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
             }
         }
 
-        public override string ToString()
-        {
-            string list = "";
-
-            foreach (ThingDef thing in things)
-            {
-                list += thing.defName + "\n";
-            }
-            return list;
-        }
-    }
-
-    internal class BetterWeightSettingsValues : ModSettings
-    {
         /// <summary>
-        /// Take the settings from the HugsLib settings section
+        /// Do the settings menu
         /// </summary>
- 
-        public List<ThingDef> ToPatch = BetterWeight.listToPatch;
-        public List<ThingDef> NotToPatch = BetterWeight.listNotToPatch;
-
-        public override void ExposeData()
-        {
-            //Scribe_Values.Look(ref ToPatch, "ToPatch");
-            //Scribe_Values.Look(ref NotToPatch, "NotToPatch");
 
 
-            base.ExposeData();
-        }
-    }
-
-    public class BetterWeightSettingsMenu : Mod
-    {
         // Control the scroll bars and which is currently selected
+        // Outside of the func so it's remembered
         private Vector2 ScrollPositionLeft;
         private Vector2 ScrollPositionRight;
         private ThingDef leftSelected;
         private ThingDef rightSelected;
-
-        /// <summary>
-        /// References the settings init'd above
-        /// </summary>
-        BetterWeightSettingsValues settings;
-
-        /// <summary>
-        /// Constructor to resolve the settings
-        /// </summary>
-        /// <param name="content"></param>
-        public BetterWeightSettingsMenu(ModContentPack content) : base(content)
-        {
-            settings = GetSettings<BetterWeightSettingsValues>();
-        }
 
         /// <summary>
         /// The GUI settings page
@@ -466,15 +227,15 @@ namespace ArchieVBetterWeight
             // Left side of selection window
             float num = 30f;
 
-            Rect viewRectLeft = new Rect(x: 0f, y: 0f, width: leftSide.width - 30, height: BetterWeight.listToPatch.Count * 30f);
+            Rect viewRectLeft = new Rect(x: 0f, y: 0f, width: leftSide.width - 30, height: Settings.ToPatch.Count * 30f);
 
-            Rect leftTitle = new Rect(x: leftSide.xMin, y: leftSide.yMin-30, width: viewRectLeft.width - 10, height: 30);
+            Rect leftTitle = new Rect(x: leftSide.xMin, y: leftSide.yMin - 30, width: viewRectLeft.width - 10, height: 30);
             Widgets.Label(leftTitle, "BetterWeight");
 
             Widgets.BeginScrollView(outRect: leftSide, scrollPosition: ref ScrollPositionLeft, viewRect: viewRectLeft);
-            if (BetterWeight.listToPatch != null)
+            if (Settings.ToPatch != null)
             {
-                foreach (ThingDef thing in BetterWeight.listToPatch)
+                foreach (ThingDef thing in Settings.ToPatch)
                 {
                     try
                     {
@@ -492,7 +253,7 @@ namespace ArchieVBetterWeight
                         // Old Mass
                         Widgets.Label(massRect, thing.BaseMass.ToString());
                         // Weight
-                        Widgets.Label(weightRect, PatchTools.RoundMass(PatchTools.CalculateMass(thing)).ToString());
+                        Widgets.Label(weightRect, RoundMass(CalculateMass(thing)).ToString());
 
                         // Logic for button clicked
                         if (Widgets.ButtonInvisible(butRect: rowRect))
@@ -511,7 +272,7 @@ namespace ArchieVBetterWeight
                     {
                         Log.Error(e.ToString());
                         Log.Error("broke on " + thing.defName);
-                        foreach (ThingDef def in BetterWeight.listToPatch)
+                        foreach (ThingDef def in Settings.ToPatch)
                         {
                             Log.Error(def.defName);
                         }
@@ -524,15 +285,15 @@ namespace ArchieVBetterWeight
             //Right side of selection window
             num = 30f;
 
-            Rect viewRectRight = new Rect(x: 0f, y: 0f, width: rightSide.width - 30, height: BetterWeight.listNotToPatch.Count * 30f);
+            Rect viewRectRight = new Rect(x: 0f, y: 0f, width: rightSide.width - 30, height: Settings.NotToPatch.Count * 30f);
 
             Rect rightTitle = new Rect(x: rightSide.xMin, y: rightSide.yMin - 30, width: viewRectLeft.width - 10, height: 30);
             Widgets.Label(rightTitle, new GUIContent("Default Mass", "All things in this category will not be effected by BetterMass and will instead use their default mass"));
 
             Widgets.BeginScrollView(outRect: rightSide, scrollPosition: ref ScrollPositionRight, viewRect: viewRectRight);
-            if (BetterWeight.listNotToPatch != null)
+            if (Settings.NotToPatch != null)
             {
-                foreach (ThingDef thing in BetterWeight.listNotToPatch)
+                foreach (ThingDef thing in Settings.NotToPatch)
                 {
                     try
                     {
@@ -549,7 +310,7 @@ namespace ArchieVBetterWeight
                         // Old Mass
                         Widgets.Label(massRect, thing.BaseMass.ToString());
                         // Weight
-                        Widgets.Label(weightRect, PatchTools.RoundMass(PatchTools.CalculateMass(thing)).ToString());
+                        Widgets.Label(weightRect, RoundMass(CalculateMass(thing)).ToString());
 
 
                         // Logic for thing clicked
@@ -567,7 +328,7 @@ namespace ArchieVBetterWeight
                     catch (Exception e)
                     {
                         Log.Error("broke on " + thing.defName);
-                        foreach (ThingDef def in BetterWeight.listNotToPatch)
+                        foreach (ThingDef def in Settings.NotToPatch)
                         {
                             Log.Error(def.defName);
                         }
@@ -580,13 +341,13 @@ namespace ArchieVBetterWeight
             // Central buttons
             try
             {
-            // Right arrow
-            // Moving from BetterWeight to Default Mass
+                // Right arrow
+                // Moving from BetterWeight to Default Mass
                 if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).RightPart(0.5f), tex: TexUI.ArrowTexRight) && leftSelected != null)
                 {
                     // Add and remove them from correct lists
-                    BetterWeight.listNotToPatch.Add(leftSelected);
-                    BetterWeight.listToPatch.Remove(leftSelected);
+                    Settings.NotToPatch.Add(leftSelected);
+                    Settings.ToPatch.Remove(leftSelected);
 
                     leftSelected = null;
                 }
@@ -594,10 +355,20 @@ namespace ArchieVBetterWeight
                 // Moving from Default Mass to BetterWeight
                 if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).LeftPart(0.5f), tex: TexUI.ArrowTexLeft) && rightSelected != null)
                 {
-                    BetterWeight.listToPatch.Add(rightSelected);
-                    BetterWeight.listNotToPatch.Remove(rightSelected);
+                    Settings.ToPatch.Add(rightSelected);
+                    Settings.NotToPatch.Remove(rightSelected);
 
                     rightSelected = null;
+                }
+
+                // Reset button
+                Rect resetButton = MainRect.BottomPart(pct: 0.7f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(0.1f);
+                Widgets.Label(resetButton, "Reset");
+                Widgets.DrawHighlightIfMouseover(resetButton);
+
+                if (Widgets.ButtonInvisible(butRect: resetButton))
+                {
+                    SetListsToDefault();
                 }
             }
             catch (Exception e)
@@ -606,19 +377,168 @@ namespace ArchieVBetterWeight
             }
 
             // Save the settings to file
-
-
             base.DoSettingsWindowContents(inRect);
+            //settings.Write();
         }
 
         /// <summary>
         /// Override SettingsCategory to show up in the list of settings.
         /// </summary>
-        /// <returns>The translated mod name</returns>
+        /// <returns>The (translated) mod name.</returns>
         public override string SettingsCategory()
         {
-            return "BetterWeight - Patch List";
+            return "BetterWeight";
         }
 
+        /// <summary>
+        /// Round the mass based on the settings above
+        /// </summary>
+        /// <param name="initMass"></param>
+        /// <returns></returns>
+        public static float RoundMass(float initMass)
+        {
+            float newMass = new float();
+
+            if (instance.Settings.roundToNearest5)
+            {
+                newMass = (float)Math.Round(initMass * 5f, instance.Settings.numberOfDPToRoundTo, MidpointRounding.AwayFromZero) / 5f;
+                newMass = (float)Math.Round(newMass, instance.Settings.numberOfDPToRoundTo);
+            }
+            else
+            {
+                newMass = (float)Math.Round(initMass, instance.Settings.numberOfDPToRoundTo, MidpointRounding.AwayFromZero);
+            }
+
+            return newMass;
+        }
+
+        /// <summary>
+        /// If passed value is in listToPatch it should be patched with new weight.
+        /// </summary>
+        /// <param name="thing">The thing to be checked if it needs patching</param>
+        /// <returns>true if it should be patched</returns>
+        public static bool ShouldPatch(ThingDef thing)
+        {
+            if (instance.Settings.ToPatch.Contains(thing)) { return true; }
+            else { return false; }
+        }
+
+        /// <summary>
+        /// Calculate mass recusively. NO ROUNDING IS DONE HERE
+        /// </summary>
+        /// <param name="thing">The thing to have its new value calculated</param>
+        /// <returns>The (new) mass of the passed value</returns>
+        public static float CalculateMass(ThingDef thing)
+        {
+            //Log.Warning("Start CalculateMass");
+            float mass = 0.00f;
+            try
+
+            {
+                if (thing.costList != null)
+                {
+                    foreach (ThingDefCountClass part in thing.costList)
+                    {
+                        mass += part.thingDef.BaseMass * part.count * instance.Settings.defaultEfficiency / 100f;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+            }
+            try
+            {
+                if (thing.costStuffCount != 0)
+                {
+                    mass += thing.costStuffCount * (instance.settings.defaultEfficiency / 100f);
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Message(e.ToString());
+            }
+
+            //Log.Message("END CalculateMass");
+            //Log.Error(thing.defName + thing.costStuffCount);
+            return mass;
+        }
+
+        /// <summary>
+        /// Reset all settings to default
+        /// </summary>
+        public static void ResetSettings()
+        {
+            instance.Settings.defaultEfficiency = 65f;
+            instance.Settings.roundToNearest5 = true;
+            instance.Settings.numberOfDPToRoundTo = 2;
+
+            SetListsToDefault();
+        }
+
+        /// <summary>
+        /// If settings are null for some reason (First install the lists will be blank) then set them
+        /// </summary>
+        public static void SetDefaultSettingsIfNeeded()
+        {
+            // If just one is blank that could just be config. If both are blank there's an issue
+            if (instance.Settings.NotToPatch.NullOrEmpty() && instance.Settings.ToPatch.NullOrEmpty())
+            {
+                SetListsToDefault();
+            }
+
+            if (instance.Settings.defaultEfficiency.Equals(0))
+            {
+                instance.Settings.defaultEfficiency = 65f;
+            }
+
+            if (instance.Settings.roundToNearest5.Equals(null))
+            {
+                instance.Settings.roundToNearest5 = true;
+            }
+
+            if (instance.Settings.numberOfDPToRoundTo.Equals(null))
+            {
+                instance.Settings.numberOfDPToRoundTo = 2;
+            }
+        }
+    }
+
+    [StaticConstructorOnStartup]
+    internal class BetterWeightSettings : ModSettings
+    {
+        /// Create settings
+
+        public List<ThingDef> ToPatch = new List<ThingDef>();
+        public List<ThingDef> NotToPatch = new List<ThingDef>();
+
+        public bool roundToNearest5;
+        public int numberOfDPToRoundTo;
+        public float defaultEfficiency;
+
+        /// <summary>
+        /// Make the settings accessable
+        /// </summary>
+        public override void ExposeData()
+        {
+            base.ExposeData();
+
+            // Reference settings to val in settings with default values
+            Scribe_Values.Look(ref roundToNearest5, "BetterWeight_roundToNearest5", true);
+            Scribe_Values.Look(ref numberOfDPToRoundTo, "BetterWeight_numberOfDPToRoundTo", 2);
+            Scribe_Values.Look(ref defaultEfficiency, "BetterWeight_defaultEfficiency", 65f);
+
+            // Do it with ToPatch
+            // The default must be blank as the defs haven't been loaded yet to make a default list
+            List<string> list1 = ToPatch?.Select(selector: thing => thing.defName).ToList() ?? new List<string>();
+            Scribe_Collections.Look(list: ref list1, label: "ToPatch");
+            ToPatch = list1.Select(selector: DefDatabase<ThingDef>.GetNamedSilentFail).Where(predicate: td => td != null).ToList();
+
+            // Do it with NotToPatch
+            // The default must be blank as the defs haven't been loaded yet to make a default list
+            List<string> list2 = NotToPatch?.Select(selector: td => td.defName).ToList() ?? new List<string>();
+            Scribe_Collections.Look(list: ref list2, label: "NotToPatch");
+            NotToPatch = list2.Select(selector: DefDatabase<ThingDef>.GetNamedSilentFail).Where(predicate: td => td != null).ToList();
+        }
     }
 }
