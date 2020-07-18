@@ -91,7 +91,6 @@ namespace ArchieVBetterWeight
         }
     }
 
-    [StaticConstructorOnStartup]
     internal class BetterWeight : Mod
     {
         public static BetterWeight instance;
