@@ -22,7 +22,6 @@ namespace ArchieVBetterWeight
         /// <returns></returns>
         static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
         {
-            Log.Error("HERER");
             // Quick check to make sure thing isn't null
             if (req.Thing == null)
             {
@@ -41,7 +40,6 @@ namespace ArchieVBetterWeight
 
             if (BetterWeight.ShouldPatch(req.Thing.def))
             {
-                Log.Message("Should patch");
                 bool needsMass = true;
                 for (var index = 0; index < req.StatBases.Count; index++) //iterate through all stats in request
                 {
@@ -111,7 +109,7 @@ namespace ArchieVBetterWeight
         public BetterWeight(ModContentPack content) : base(content)
         {
             try
-            { 
+            {
                 Log.Message(DateTime.Now.ToString("h:mm:ss tt") + " Loading BetterWeight...");
 
                 instance = this;
@@ -121,7 +119,6 @@ namespace ArchieVBetterWeight
 
                 Harmony harmony = new Harmony("uk.ArchieV.projects.modding.Rimworld.BetterWeight");
                 harmony.PatchAll();
-                Log.Message(harmony.Id);
 
                 Log.Message(DateTime.Now.ToString("h:mm:ss tt") + " Finished loading BetterWeight");
             }
@@ -188,15 +185,12 @@ namespace ArchieVBetterWeight
                     // The name and icon of the thing
                     Widgets.DefLabelWithIcon(rowRect, thing);
 
-                    // Show the number on the right side of the name
-                    Rect rightPartRow = rowRect.RightPartPixels(90);
-                    Rect massRect = rightPartRow.LeftPart(pct: 0.45f);
-                    Rect weightRect = rightPartRow.RightPart(pct: 0.55f);
-
-                    // Old Mass
-                    Widgets.Label(massRect, thing.BaseMass.ToString());
-                    // Weight
-                    Widgets.Label(weightRect, RoundMass(CalculateMass(thing)).ToString());
+                    // Say if this "thing" is by default patched or not
+                    if (Settings.DefaultToPatch.Contains(thing))
+                    {
+                        Rect rightPartRow = rowRect.RightPartPixels(47);
+                        Widgets.Label(rightPartRow, "Default");
+                    }
 
                     // Logic for button clicked
                     if (Widgets.ButtonInvisible(butRect: rowRect))
@@ -225,6 +219,8 @@ namespace ArchieVBetterWeight
             Widgets.Label(rightTitle, new GUIContent("Default Mass", "All things in this category will not be effected by BetterMass and will instead use their default mass"));
 
             Widgets.BeginScrollView(outRect: rightSide, scrollPosition: ref ScrollPositionRight, viewRect: viewRectRight);
+
+            // Create each line of the right side
             if (Settings.NotToPatch != null)
             {
                 foreach (ThingDef thing in Settings.NotToPatch)
@@ -234,16 +230,12 @@ namespace ArchieVBetterWeight
 
                     Widgets.DefLabelWithIcon(rowRect, thing);
 
-                    // Show the number on the right side of the name
-                    Rect rightPartRow = rowRect.RightPartPixels(90);
-                    Rect massRect = rightPartRow.LeftPart(pct: 0.45f);
-                    Rect weightRect = rightPartRow.RightPart(pct: 0.55f);
-
-                    // Old Mass
-                    Widgets.Label(massRect, thing.BaseMass.ToString());
-                    // Weight
-                    Widgets.Label(weightRect, RoundMass(CalculateMass(thing)).ToString());
-
+                    // Say if this "thing" is by default patched or not
+                    if (Settings.DefaultToPatch.Contains(thing))
+                    {
+                        Rect rightPartRow = rowRect.RightPartPixels(47);
+                        Widgets.Label(rightPartRow, "Default");
+                    }
 
                     // Logic for thing clicked
                     if (Widgets.ButtonInvisible(butRect: rowRect))
@@ -285,12 +277,13 @@ namespace ArchieVBetterWeight
 
             // Reset button
             Rect resetButton = MainRect.BottomPart(pct: 0.7f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(0.1f);
-            Widgets.Label(resetButton, "Reset");
-            Widgets.DrawHighlightIfMouseover(resetButton);
-
-            if (Widgets.ButtonInvisible(butRect: resetButton))
+            if (Widgets.ButtonText(resetButton, "Reset"))
             {
                 SetListsToDefault();
+            }
+            if (Mouse.IsOver(resetButton))
+            {
+                TooltipHandler.TipRegion(resetButton, "Reset both lists to default");
             }
 
             // ----------------------------------------------------------------------------------------------------------------
@@ -304,7 +297,7 @@ namespace ArchieVBetterWeight
             // numberOfDPToRoundTo. Int with min and max val
             Rect numDPRect = otherSettingsLeft.TopHalf();
             Rect numDPLabel = numDPRect.LeftHalf();
-            Rect numDPSlider = numDPRect.RightHalf();
+            Rect numDPSlider = numDPRect.RightHalf().BottomPart(0.7f);
 
             Widgets.Label(numDPLabel, "Number of Decimal Places to Round Masses to");
             instance.Settings.numberOfDPToRoundTo = (int)Math.Round(Widgets.HorizontalSlider(numDPSlider, instance.Settings.numberOfDPToRoundTo, 0f, 2f, false, null, "0", "2", -1), MidpointRounding.AwayFromZero);
@@ -321,19 +314,28 @@ namespace ArchieVBetterWeight
 
             // defaultEfficiency. Float with min and max val
             Rect efficiencyRect = otherSettingsRight.TopHalf();
-            Rect efficiencyLabel = efficiencyRect.LeftHalf();
+            Rect efficiencyLabel = efficiencyRect.LeftHalf().BottomPart(0.7f);
             Rect efficiencySlider = efficiencyRect.RightHalf();
 
-            Widgets.Label(efficiencyLabel, "Efficiency\n" +
-                "A higher number means a higher mass");
+            Widgets.Label(efficiencyLabel, "Efficiency");
+            if (Mouse.IsOver(efficiencyLabel))
+            {
+                TooltipHandler.TipRegion(efficiencyLabel, "A higher number means a higher BetterWeight\n" +
+                    "BetterWeight = Sum of all components × Efficiency");
+            }
+
             instance.Settings.defaultEfficiency = Widgets.HorizontalSlider(efficiencySlider, instance.Settings.defaultEfficiency, 5, 300, false, instance.Settings.defaultEfficiency.ToString(), "5", "300", 5);
 
             // Reset extra settings
             Rect resetExtraButton = otherSettingsRight.BottomHalf().BottomPart(0.5f).RightPart(0.8f);
-            Widgets.Label(resetExtraButton, "Reset other settings (NOT LISTS)");
-            Widgets.DrawHighlightIfMouseover(resetExtraButton);
+            //Widgets.ButtonText(resetExtraButton, "Reset other settings (NOT LISTS)");
+            //Widgets.DrawHighlightIfMouseover(resetExtraButton);
 
-            if (Widgets.ButtonInvisible(butRect: resetExtraButton))
+            if (Mouse.IsOver(resetExtraButton))
+            {
+                TooltipHandler.TipRegion(resetExtraButton, "Reset settings that are not the lists to their default values");
+            }
+            if (Widgets.ButtonText(resetExtraButton, "Reset other settings"))
             {
                 ResetOtherSettings();
             }
@@ -426,7 +428,7 @@ namespace ArchieVBetterWeight
         public static bool ShouldPatch(ThingDef thing)
         {
             if (instance.Settings.ToPatch.Contains(thing)) { return true; }
-            else { Log.Message(thing.defName);  return false; }
+            else { return false; }
         }
 
         /// ---------------------------------------------------------------------------------------------------------------------
@@ -442,6 +444,7 @@ namespace ArchieVBetterWeight
         {
             instance.Settings.ToPatch = generateDefaultListToPatch();
             instance.Settings.NotToPatch = generateDefaultListToNotPatch();
+            instance.Settings.DefaultToPatch = generateDefaultListToPatch();
         }
 
         /// <summary>
@@ -479,6 +482,7 @@ namespace ArchieVBetterWeight
             instance.Settings.roundToNearest5 = true;
             instance.Settings.numberOfDPToRoundTo = 2;
         }
+
         /// <summary>
         /// If settings are null for some reason (First install the lists will be blank) then set them
         /// </summary>
@@ -523,6 +527,7 @@ namespace ArchieVBetterWeight
                     toPatch.Add(thing);
                 }
             }
+
             return toPatch;
 
         }
@@ -543,6 +548,7 @@ namespace ArchieVBetterWeight
                     toNotPatch.Add(thing);
                 }
             }
+
             return toNotPatch;
         }
     }
@@ -559,6 +565,10 @@ namespace ArchieVBetterWeight
         public int numberOfDPToRoundTo;
         public float defaultEfficiency;
 
+        // To tag the default options in the settings menu
+        // This way it doesn't have to calculate it more than once
+        public List<ThingDef> DefaultToPatch = new List<ThingDef>();
+
         /// <summary>
         /// Make the settings accessable
         /// </summary>
@@ -572,16 +582,25 @@ namespace ArchieVBetterWeight
             Scribe_Values.Look(ref defaultEfficiency, "BetterWeight_defaultEfficiency", 65f);
 
             // Do it with ToPatch
+            // Create list of strings from ToPatch and if that is blank then create blanks list.
+            // Then ref to the settings file
+            // Then turn list of strings back into list of ThingDefs by getting the ThingDefs from the DefDatabase using their names
             // The default must be blank as the defs haven't been loaded yet to make a default list
             List<string> list1 = ToPatch?.Select(selector: thing => thing.defName).ToList() ?? new List<string>();
             Scribe_Collections.Look(list: ref list1, label: "ToPatch");
             ToPatch = list1.Select(selector: DefDatabase<ThingDef>.GetNamedSilentFail).Where(predicate: td => td != null).ToList();
 
-            // Do it with NotToPatch
+            // Same with NotToPatch
             // The default must be blank as the defs haven't been loaded yet to make a default list
             List<string> list2 = NotToPatch?.Select(selector: td => td.defName).ToList() ?? new List<string>();
             Scribe_Collections.Look(list: ref list2, label: "NotToPatch");
             NotToPatch = list2.Select(selector: DefDatabase<ThingDef>.GetNamedSilentFail).Where(predicate: td => td != null).ToList();
+
+            // Same with DefaultToPatch
+            // The default must be blank as the defs haven't been loaded yet to make a default list
+            List<string> list3 = DefaultToPatch?.Select(selector: td => td.defName).ToList() ?? new List<string>();
+            Scribe_Collections.Look(list: ref list3, label: "DefaultToPatch");
+            DefaultToPatch = list3.Select(selector: DefDatabase<ThingDef>.GetNamedSilentFail).Where(predicate: td => td != null).ToList();
         }
     }
 }
