@@ -49,7 +49,7 @@ namespace ArchieVBetterWeight
                         var new_mass = BetterWeight.RoundMass(BetterWeight.CalculateMass(req.Thing.def));
                         if (stat.value != 0 && stat.value != 1)
                         {
-                            Log.Message("Changed mass for " + req.Def.defName + " to " + new_mass, true);
+                            //Log.Message("Changed mass for " + req.Def.defName + " to " + new_mass, true);
                             req.StatBases[index].value = new_mass; //set mass of item here    
                         }
 
@@ -80,16 +80,24 @@ namespace ArchieVBetterWeight
                     Log.Message("Added mass for " + req.Thing.def.defName);
                 }
             }
-            else
-            {
-                Log.Error("DOnt patch");
-            }
-
             return true; //returns true so function runs with modifed StatReq
         }
     }
 
-    internal class BetterWeight : Mod
+    // Exists just to use this constructor
+    [StaticConstructorOnStartup]
+    class StaticClass
+    {
+        static StaticClass()
+        {
+            // Generate the lists that will be used to reset stuff in the settings menu
+            //BetterWeight.GenerateDefaultLists();
+            BetterWeight.SetDefaultSettingsIfNeeded();
+        }
+    }
+    
+    
+    class BetterWeight : Mod
     {
         public static BetterWeight instance;
         public BetterWeightSettings settings;
@@ -110,17 +118,18 @@ namespace ArchieVBetterWeight
         {
             try
             {
-                Log.Message(DateTime.Now.ToString("h:mm:ss tt") + " Loading BetterWeight...");
+                Log.Message(DateTime.Now.ToString("HH:mm:ss tt") + " Loading BetterWeight...");
 
                 instance = this;
 
                 // If settings are null; fix them
-                //SetDefaultSettingsIfNeeded();
+                Log.Error(DefDatabase<Def>.DefCount.ToString());
+                SetDefaultSettingsIfNeeded();
 
                 Harmony harmony = new Harmony("uk.ArchieV.projects.modding.Rimworld.BetterWeight");
                 harmony.PatchAll();
 
-                Log.Message(DateTime.Now.ToString("h:mm:ss tt") + " Finished loading BetterWeight");
+                Log.Message(DateTime.Now.ToString("HH:mm:ss tt") + " Finished loading BetterWeight");
             }
             catch (Exception e)
             {
@@ -130,7 +139,6 @@ namespace ArchieVBetterWeight
             }
 
         }
-
 
         /// ---------------------------------------------------------------------------------------------------------------------
         ///                                             Settings menu
@@ -159,7 +167,7 @@ namespace ArchieVBetterWeight
             Rect topRect = inRect.TopPart(0.10f);
             Rect MainRect = inRect.BottomPart(0.90f).TopPart(0.75f);
 
-            Widgets.Label(topRect.TopHalf(), "For changes to take effect you must reload your save");
+            Widgets.Label(topRect.TopHalf(), "For changes to take effect you must reload your save and possibly game");
 
             Rect leftSide = MainRect.LeftPart(0.46f);
             Rect rightSide = MainRect.RightPart(0.46f);
@@ -280,6 +288,7 @@ namespace ArchieVBetterWeight
             if (Widgets.ButtonText(resetButton, "Reset"))
             {
                 SetListsToDefault();
+                base.DoSettingsWindowContents(inRect);
             }
             if (Mouse.IsOver(resetButton))
             {
@@ -438,13 +447,26 @@ namespace ArchieVBetterWeight
         // WARNING
         // Not sure this works
         /// <summary>
-        /// Set ToPatch and NotToPatch to their default lists
+        /// Set ToPatch and NotToPatch to their default lists from the lists that are generated at game start
         /// </summary>
         public static void SetListsToDefault()
         {
-            instance.Settings.ToPatch = generateDefaultListToPatch();
-            instance.Settings.NotToPatch = generateDefaultListToNotPatch();
+            Log.Warning("SetListsToDefault");
+            instance.Settings.ToPatch = instance.Settings.DefaultToPatch;
+            instance.Settings.NotToPatch = instance.Settings.DefaultNotToPatch;
+            instance.Settings.Write();
+        }
+
+        /// <summary>
+        /// Generate DefaultToPatch and DefaultNotToPatch for the settings menu
+        /// </summary>
+        public static void GenerateDefaultLists()
+        {
+            Log.Warning("GenerateDefaultLists");
+            Log.Message(instance.Settings.DefaultToPatch.Count.ToString());
             instance.Settings.DefaultToPatch = generateDefaultListToPatch();
+            instance.Settings.DefaultNotToPatch = generateDefaultListToNotPatch();
+            Log.Message(instance.Settings.DefaultToPatch.Count.ToString());
         }
 
         /// <summary>
@@ -488,6 +510,9 @@ namespace ArchieVBetterWeight
         /// </summary>
         public static void SetDefaultSettingsIfNeeded()
         {
+            // Generate the default lists to make sure they are correct and save them to the settings menu
+            GenerateDefaultLists();
+
             // If just one is blank that could just be config. If both are blank there's an issue
             if (instance.Settings.NotToPatch.NullOrEmpty() && instance.Settings.ToPatch.NullOrEmpty())
             {
@@ -566,8 +591,9 @@ namespace ArchieVBetterWeight
         public float defaultEfficiency;
 
         // To tag the default options in the settings menu
-        // This way it doesn't have to calculate it more than once
+        // and the "reset" button works in the settings menu
         public List<ThingDef> DefaultToPatch = new List<ThingDef>();
+        public List<ThingDef> DefaultNotToPatch = new List<ThingDef>();
 
         /// <summary>
         /// Make the settings accessable
@@ -601,6 +627,12 @@ namespace ArchieVBetterWeight
             List<string> list3 = DefaultToPatch?.Select(selector: td => td.defName).ToList() ?? new List<string>();
             Scribe_Collections.Look(list: ref list3, label: "DefaultToPatch");
             DefaultToPatch = list3.Select(selector: DefDatabase<ThingDef>.GetNamedSilentFail).Where(predicate: td => td != null).ToList();
+
+            // Same with DefaultNotToPatch
+            // The default must be blank as the defs haven't been loaded yet to make a default list
+            List<string> list4 = DefaultNotToPatch?.Select(selector: td => td.defName).ToList() ?? new List<string>();
+            Scribe_Collections.Look(list: ref list4, label: "DefaultNotToPatch");
+            DefaultNotToPatch = list4.Select(selector: DefDatabase<ThingDef>.GetNamedSilentFail).Where(predicate: td => td != null).ToList();
         }
     }
 }
