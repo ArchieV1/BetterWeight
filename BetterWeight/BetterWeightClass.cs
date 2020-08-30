@@ -6,6 +6,10 @@ using RimWorld;
 using UnityEngine;
 using System.Linq;
 
+
+//if (instance.Settings.devMode)
+//{ Log.Warning("SetDefaultSettingsIfNeeded"); }
+
 namespace ArchieVBetterWeight
 {
     [HarmonyPatch(typeof(StatWorker))]
@@ -77,7 +81,7 @@ namespace ArchieVBetterWeight
 
                     req.StatBases.Add(statModifier);
 
-                    Log.Message("Added mass for " + req.Thing.def.defName);
+                    //Log.Message("Added mass for " + req.Thing.def.defName);
                 }
             }
             return true; //returns true so function runs with modifed StatReq
@@ -90,8 +94,8 @@ namespace ArchieVBetterWeight
     {
         static StaticClass()
         {
-            // Generate the lists that will be used to reset stuff in the settings menu
-            //BetterWeight.GenerateDefaultLists();
+            if (BetterWeight.instance.Settings.devMode)
+            { Log.Warning("StaticClass"); }
             BetterWeight.SetDefaultSettingsIfNeeded();
         }
     }
@@ -121,10 +125,6 @@ namespace ArchieVBetterWeight
                 Log.Message(DateTime.Now.ToString("HH:mm:ss tt") + " Loading BetterWeight...");
 
                 instance = this;
-
-                // If settings are null; fix them
-                Log.Error(DefDatabase<Def>.DefCount.ToString());
-                SetDefaultSettingsIfNeeded();
 
                 Harmony harmony = new Harmony("uk.ArchieV.projects.modding.Rimworld.BetterWeight");
                 harmony.PatchAll();
@@ -167,10 +167,18 @@ namespace ArchieVBetterWeight
             Rect topRect = inRect.TopPart(0.10f);
             Rect MainRect = inRect.BottomPart(0.90f).TopPart(0.75f);
 
-            Widgets.Label(topRect.TopHalf(), "For changes to take effect you must reload your save and possibly game");
+            Widgets.Label(topRect.TopHalf(), "If you disable an object from using BetterWeight you must restart your game for changes to take effect");
 
             Rect leftSide = MainRect.LeftPart(0.46f);
             Rect rightSide = MainRect.RightPart(0.46f);
+
+
+            // ----------------------------------------------------------------------------------------------------------------
+            //                                              Dev Options
+            // ----------------------------------------------------------------------------------------------------------------
+            Rect devModeToggleRect = inRect.RightPart(0.06f).TopPart(0.04f);
+            Widgets.CheckboxLabeled(devModeToggleRect, "Dev", ref instance.Settings.devMode);         
+            
 
             // ----------------------------------------------------------------------------------------------------------------
             //                                      Left side of selection window
@@ -444,17 +452,13 @@ namespace ArchieVBetterWeight
         ///                                             Settings functions
         /// ---------------------------------------------------------------------------------------------------------------------
 
-        // WARNING
-        // Not sure this works
         /// <summary>
         /// Set ToPatch and NotToPatch to their default lists from the lists that are generated at game start
         /// </summary>
         public static void SetListsToDefault()
         {
-            Log.Warning("SetListsToDefault");
             instance.Settings.ToPatch = instance.Settings.DefaultToPatch;
             instance.Settings.NotToPatch = instance.Settings.DefaultNotToPatch;
-            instance.Settings.Write();
         }
 
         /// <summary>
@@ -462,11 +466,8 @@ namespace ArchieVBetterWeight
         /// </summary>
         public static void GenerateDefaultLists()
         {
-            Log.Warning("GenerateDefaultLists");
-            Log.Message(instance.Settings.DefaultToPatch.Count.ToString());
             instance.Settings.DefaultToPatch = generateDefaultListToPatch();
             instance.Settings.DefaultNotToPatch = generateDefaultListToNotPatch();
-            Log.Message(instance.Settings.DefaultToPatch.Count.ToString());
         }
 
         /// <summary>
@@ -502,7 +503,7 @@ namespace ArchieVBetterWeight
         {
             instance.Settings.defaultEfficiency = 65f;
             instance.Settings.roundToNearest5 = true;
-            instance.Settings.numberOfDPToRoundTo = 2;
+            instance.Settings.numberOfDPToRoundTo = 0;
         }
 
         /// <summary>
@@ -510,7 +511,10 @@ namespace ArchieVBetterWeight
         /// </summary>
         public static void SetDefaultSettingsIfNeeded()
         {
-            // Generate the default lists to make sure they are correct and save them to the settings menu
+            if (instance.Settings.devMode)
+            { Log.Warning("SetDefaultSettingsIfNeeded"); }
+            
+            // Generate the default lists every time to make sure they are correct and save them for the settings menu
             GenerateDefaultLists();
 
             // If just one is blank that could just be config. If both are blank there's an issue
@@ -531,7 +535,7 @@ namespace ArchieVBetterWeight
 
             if (instance.Settings.numberOfDPToRoundTo.Equals(null))
             {
-                instance.Settings.numberOfDPToRoundTo = 2;
+                instance.Settings.numberOfDPToRoundTo = 0;
             }
         }
 
@@ -595,6 +599,9 @@ namespace ArchieVBetterWeight
         public List<ThingDef> DefaultToPatch = new List<ThingDef>();
         public List<ThingDef> DefaultNotToPatch = new List<ThingDef>();
 
+        // Enable dev options
+        public bool devMode;
+
         /// <summary>
         /// Make the settings accessable
         /// </summary>
@@ -604,8 +611,10 @@ namespace ArchieVBetterWeight
 
             // Reference settings to val in settings with default values
             Scribe_Values.Look(ref roundToNearest5, "BetterWeight_roundToNearest5", true);
-            Scribe_Values.Look(ref numberOfDPToRoundTo, "BetterWeight_numberOfDPToRoundTo", 2);
+            Scribe_Values.Look(ref numberOfDPToRoundTo, "BetterWeight_numberOfDPToRoundTo", 0);
             Scribe_Values.Look(ref defaultEfficiency, "BetterWeight_defaultEfficiency", 65f);
+
+            Scribe_Values.Look(ref devMode, "BetterWeight_devMode", false);
 
             // Do it with ToPatch
             // Create list of strings from ToPatch and if that is blank then create blanks list.
