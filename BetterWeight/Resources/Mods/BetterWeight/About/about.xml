@@ -10,7 +10,7 @@
   </supportedVersions>
   <description>
 	Ever notices that many building have a weight of 1kg? Well that sometimes just doesn't make sense.
-	This mod fixes that by adding the weight of the materials needed to build it and multiplying that by 0.8 (Default)
+	This mod fixes that by adding the weight of the materials needed to build it and multiplying that by 0.65 (Default)
 	
 	Makes MinifyEverything much more balanced. No more stealing 1kg solar panels from bases!
 </description>
