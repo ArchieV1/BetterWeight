@@ -26,4 +26,4 @@ Tested to work on rimworld version 1.1
 Royalty should be supported  
 
 ### Known Bugs
-You must restart the game after launching in order for the weights to upate (Eg. after enabling a new mod or installing this mod for the first time)
+None
