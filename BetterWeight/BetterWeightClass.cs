@@ -80,11 +80,11 @@ namespace ArchieVBetterWeight
                     };
 
                     req.StatBases.Add(statModifier);
-
                     //Log.Message("Added mass for " + req.Thing.def.defName);
                 }
             }
-            return true; //returns true so function runs with modifed StatReq
+            // Returns true so function runs with modifed StatReq
+            return true; 
         }
     }
 
@@ -95,8 +95,27 @@ namespace ArchieVBetterWeight
         static StaticClass()
         {
             if (BetterWeight.instance.Settings.devMode)
-            { Log.Warning("StaticClass"); }
+            { Log.Warning("StaticClass"); LogAllBuildings(); }
             BetterWeight.SetDefaultSettingsIfNeeded();
+
+            
+        }
+        public static void LogAllBuildings()
+        {
+            List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
+            List<ThingDef> buildings = new List<ThingDef>();
+
+            foreach (ThingDef thing in things)
+            {
+                if (thing.category == ThingCategory.Building && !thing.defName.Contains("Frame"))
+                {
+                    buildings.Add(thing);
+                }
+            }
+            foreach (ThingDef thing in buildings)
+            {
+                Log.Message(thing.defName, true);
+            }
         }
     }
     
@@ -140,6 +159,7 @@ namespace ArchieVBetterWeight
 
         }
 
+        #region SettingsMenu
         /// ---------------------------------------------------------------------------------------------------------------------
         ///                                             Settings menu
         /// ---------------------------------------------------------------------------------------------------------------------
@@ -369,7 +389,8 @@ namespace ArchieVBetterWeight
             return "BetterWeight";
         }
 
-
+        #endregion
+        #region PatchFunctions
         /// ---------------------------------------------------------------------------------------------------------------------
         ///                                             Patch functions
         /// ---------------------------------------------------------------------------------------------------------------------
@@ -447,7 +468,8 @@ namespace ArchieVBetterWeight
             if (instance.Settings.ToPatch.Contains(thing)) { return true; }
             else { return false; }
         }
-
+        #endregion
+        #region SettingsFunctions
         /// ---------------------------------------------------------------------------------------------------------------------
         ///                                             Settings functions
         /// ---------------------------------------------------------------------------------------------------------------------
@@ -580,6 +602,7 @@ namespace ArchieVBetterWeight
 
             return toNotPatch;
         }
+        #endregion
     }
 
     [StaticConstructorOnStartup]

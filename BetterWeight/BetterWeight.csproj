@@ -98,8 +98,6 @@
     <Content Include="Resources\Mods\BetterWeight\Assemblies\BetterWeight.dll" />
     <Content Include="Resources\Mods\BetterWeight\Assemblies\BetterWeight.pdb" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Resources\Mods\BetterWeight\Patches\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
