@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Manifest>
+  <identifier>ArchieV.BetterWeight</identifier>
   <version>2.1.1</version>
-  <manifestUri>https://www.archiev.uk/projects/modding/Rimworld/BetterWeight/Manifest.xml</manifestUri>
-  <downloadUri>https://www.archiev.uk/projects/modding/Rimworld/BetterWeight/download.zip</downloadUri>
+
+  <dependencies>
+    <li>Harmony</li>
+  </dependencies>
+
+  <suggests>
+    <li>MinifyEverything</li>
+  </suggests>
+
+  <showCrossPromotions>true</showCrossPromotions>
+  
+  <manifestUri>http://www.archiev.uk/projects/modding/Rimworld/BetterWeight/Manifest.xml</manifestUri>
+  <downloadUri>http://www.archiev.uk/projects/modding/Rimworld/BetterWeight/download.zip</downloadUri>
 </Manifest>
