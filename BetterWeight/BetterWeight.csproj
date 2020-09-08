@@ -93,7 +93,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Resources\Mods\BetterWeight\About\about.xml" />
+    <Content Include="Resources\Mods\BetterWeight\About\About.xml" />
     <Content Include="Resources\Mods\BetterWeight\About\Manifest.xml" />
     <Content Include="Resources\Mods\BetterWeight\Assemblies\BetterWeight.dll" />
     <Content Include="Resources\Mods\BetterWeight\Assemblies\BetterWeight.pdb" />
