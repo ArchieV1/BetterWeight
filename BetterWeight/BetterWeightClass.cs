@@ -4,7 +4,9 @@ using Verse;
 using HarmonyLib;
 using RimWorld;
 using UnityEngine;
+using Unity.IO;
 using System.Linq;
+using System.Windows.Input;
 
 
 //if (instance.Settings.devMode)
@@ -166,11 +168,11 @@ namespace ArchieVBetterWeight
 
 
         // Control the scroll bars and which is currently selected
-        // Outside of the func so it's remembered
+        // Outside of the func so they're remembered
         private Vector2 ScrollPositionLeft;
         private Vector2 ScrollPositionRight;
-        private ThingDef leftSelected;
-        private ThingDef rightSelected;
+        private List<ThingDef> leftSelected = new List<ThingDef>();
+        private List<ThingDef> rightSelected = new List<ThingDef>();
 
         /// <summary>
         /// The GUI settings page
@@ -197,118 +199,133 @@ namespace ArchieVBetterWeight
             //                                              Dev Options
             // ----------------------------------------------------------------------------------------------------------------
             Rect devModeToggleRect = inRect.RightPart(0.06f).TopPart(0.04f);
-            Widgets.CheckboxLabeled(devModeToggleRect, "Dev", ref instance.Settings.devMode);         
+            Widgets.CheckboxLabeled(devModeToggleRect, "Dev", ref instance.Settings.devMode);
+
+            List<ThingDef> generateSelectionWindow(String sideStr, Rect sideRect, List<ThingDef> list, String title, String titleToolTip, ref Vector2 scrollPosition, List<ThingDef> selectedArray)
+            {
+                float num = 0f;
+
+                Rect viewRect = new Rect(x: 0f, y: 0f, width: sideRect.width - 30, height: list.Count * 30f);
+
+                Rect titleRect = new Rect(x: sideRect.xMin, y: sideRect.yMin - 30, width: viewRect.width - 10, height: 30);
+                Widgets.Label(titleRect, title);
+                if (Mouse.IsOver(titleRect))
+                {
+                    TooltipHandler.TipRegion(titleRect, titleToolTip);
+                }
+
+                Widgets.BeginScrollView(outRect: sideRect, scrollPosition: ref scrollPosition, viewRect: viewRect);
+                if (Settings.ToPatch != null)
+                {
+                    foreach (ThingDef thing in list)
+                    {
+                        Rect rowRect = new Rect(x: 5, y: num, width: viewRect.width - 10, height: 30);
+                        Widgets.DrawHighlightIfMouseover(rect: rowRect);
+
+                        // The name and icon of the thing
+                        Widgets.DefLabelWithIcon(rowRect, thing);
+
+                        // Say if this "thing" is by default patched or not
+                        if (Settings.DefaultToPatch.Contains(thing))
+                        {
+                            Rect rightPartRow = rowRect.RightPartPixels(47+25);
+                            Widgets.Label(rightPartRow, "BW Default");
+                        }
+
+                        // Logic for thingDef clicked
+                        if (Widgets.ButtonInvisible(butRect: rowRect))
+                        {
+                            // Ctrl click lets you select 2+ before moving them
+                            if (Event.current.control || Event.current.command)
+                            {
+                                if (Settings.devMode)
+                                {
+                                    Log.Message("Ctrl/Cmd clicked" + sideStr + "\nBefore:");
+                                    Log.Message(String.Join(", ", selectedArray));
+                                }
+
+                                selectedArray.Add(thing);
+
+                                if (Settings.devMode)
+                                {
+                                    Log.Message("After:");
+                                    Log.Message(String.Join(", ", selectedArray));
+                                }
+                            }
+                            else
+                            {
+                                // Shift click selects all between last clicked and most recently clicked
+                                if (Event.current.shift)
+                                {
+                                    if (selectedArray.Count > 0)
+                                    {
+                                        int lastSelectedIndex =
+                                            list.IndexOf(selectedArray[selectedArray.Count - 1]);
+                                        int currentSelectedIndex = list.IndexOf(thing);
+                                        selectedArray = currentSelectedIndex > lastSelectedIndex
+                                            ? list.GetRange(lastSelectedIndex,
+                                                currentSelectedIndex - lastSelectedIndex + 1)
+                                            : list.GetRange(currentSelectedIndex,
+                                                lastSelectedIndex - currentSelectedIndex);
+                                    }
+                                    else
+                                    {
+                                        selectedArray = new List<ThingDef>() {thing};
+                                    }
+                                }
+                                // Normal click clears the currently selected
+                                else
+                                {
+                                    selectedArray = new List<ThingDef>() {thing};
+                                }
+                            }
+                        }
+                        if (selectedArray.Contains(thing))
+                        {
+                            Widgets.DrawHighlightSelected(rowRect);
+                        }
+
+                        num += 30f;
+                    }
+                }
+                Widgets.EndScrollView();
+
+                return selectedArray;
+            }
             
+            leftSelected = generateSelectionWindow("leftSide", leftSide, Settings.NotToPatch, "Use Default Mass", "All things in this category will not be effected by BetterMass and will instead use their default mass", ref ScrollPositionLeft, leftSelected);
+            rightSelected = generateSelectionWindow("rightSide", rightSide, Settings.ToPatch, "Use BetterWeight", "", ref ScrollPositionRight, rightSelected);
 
-            // ----------------------------------------------------------------------------------------------------------------
-            //                                      Left side of selection window
-            // ----------------------------------------------------------------------------------------------------------------
-            float num = 0f;
-
-            Rect viewRectLeft = new Rect(x: 0f, y: 0f, width: leftSide.width - 30, height: Settings.ToPatch.Count * 30f);
-
-            Rect leftTitle = new Rect(x: leftSide.xMin, y: leftSide.yMin - 30, width: viewRectLeft.width - 10, height: 30);
-            Widgets.Label(leftTitle, "BetterWeight");
-
-            Widgets.BeginScrollView(outRect: leftSide, scrollPosition: ref ScrollPositionLeft, viewRect: viewRectLeft);
-            if (Settings.ToPatch != null)
-            {
-                foreach (ThingDef thing in Settings.ToPatch)
-                {
-                    Rect rowRect = new Rect(x: 5, y: num, width: viewRectLeft.width - 10, height: 30);
-                    Widgets.DrawHighlightIfMouseover(rect: rowRect);
-
-                    // The name and icon of the thing
-                    Widgets.DefLabelWithIcon(rowRect, thing);
-
-                    // Say if this "thing" is by default patched or not
-                    if (Settings.DefaultToPatch.Contains(thing))
-                    {
-                        Rect rightPartRow = rowRect.RightPartPixels(47);
-                        Widgets.Label(rightPartRow, "Default");
-                    }
-
-                    // Logic for button clicked
-                    if (Widgets.ButtonInvisible(butRect: rowRect))
-                    {
-                        leftSelected = thing;
-                    }
-
-                    if (leftSelected == thing)
-                    {
-                        Widgets.DrawHighlightSelected(rowRect);
-                    }
-
-                    num += 30f;
-                }
-            }
-            Widgets.EndScrollView();
-
-            // ----------------------------------------------------------------------------------------------------------------
-            //                                      Right side of selection window
-            // ----------------------------------------------------------------------------------------------------------------
-            num = 0f;
-
-            Rect viewRectRight = new Rect(x: 0f, y: 0f, width: rightSide.width - 30, height: Settings.NotToPatch.Count * 30f);
-
-            Rect rightTitle = new Rect(x: rightSide.xMin, y: rightSide.yMin - 30, width: viewRectLeft.width - 10, height: 30);
-            Widgets.Label(rightTitle, new GUIContent("Default Mass", "All things in this category will not be effected by BetterMass and will instead use their default mass"));
-
-            Widgets.BeginScrollView(outRect: rightSide, scrollPosition: ref ScrollPositionRight, viewRect: viewRectRight);
-
-            // Create each line of the right side
-            if (Settings.NotToPatch != null)
-            {
-                foreach (ThingDef thing in Settings.NotToPatch)
-                {
-                    Rect rowRect = new Rect(x: 5, y: num, width: viewRectRight.width - 10, height: 30);
-                    Widgets.DrawHighlightIfMouseover(rect: rowRect);
-
-                    Widgets.DefLabelWithIcon(rowRect, thing);
-
-                    // Say if this "thing" is by default patched or not
-                    if (Settings.DefaultToPatch.Contains(thing))
-                    {
-                        Rect rightPartRow = rowRect.RightPartPixels(47);
-                        Widgets.Label(rightPartRow, "Default");
-                    }
-
-                    // Logic for thing clicked
-                    if (Widgets.ButtonInvisible(butRect: rowRect))
-                    {
-                        rightSelected = thing;
-                    }
-
-                    if (rightSelected == thing)
-                    {
-                        Widgets.DrawHighlightSelected(rowRect);
-                    }
-                    num += 30f;
-                }
-            }
-            Widgets.EndScrollView();
-
+            #region Centre buttons
             // ----------------------------------------------------------------------------------------------------------------
             //                                                  Central buttons
             // ----------------------------------------------------------------------------------------------------------------
             // Right arrow
-            // Moving from ToPatch to NotToPatch
-            if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).RightPart(0.5f), tex: TexUI.ArrowTexRight) && leftSelected != null)
+            // Moving from NotToPatch to ToPatch (Left side to right side)
+            if (Widgets.ButtonImage(
+                butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f)
+                    .LeftPart(pct: 0.1f).RightPart(0.5f), tex: TexUI.ArrowTexRight) && leftSelected != null)
             {
                 // Add and remove them from correct lists
-                Settings.NotToPatch.Add(leftSelected);
-                Settings.ToPatch.Remove(leftSelected);
-
-                leftSelected = null;
+                foreach (ThingDef thing in leftSelected)
+                {
+                    Settings.ToPatch.Add(thing);
+                    Settings.NotToPatch.Remove(thing);
+                }
+                leftSelected = new List<ThingDef>();
             }
             // Left arrow
-            // Moving from NotToPatch to ToPatch
-            if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).LeftPart(0.5f), tex: TexUI.ArrowTexLeft) && rightSelected != null)
+            // Moving from ToPatch to NotToPatch (Right side to left side)
+            if (Widgets.ButtonImage(
+                butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f)
+                    .LeftPart(pct: 0.1f).LeftPart(0.5f), tex: TexUI.ArrowTexLeft) && rightSelected != null)
             {
-                Settings.ToPatch.Add(rightSelected);
-                Settings.NotToPatch.Remove(rightSelected);
-
-                rightSelected = null;
+                foreach (ThingDef thing in rightSelected)
+                {
+                    Settings.NotToPatch.Add(thing);
+                    Settings.ToPatch.Remove(thing);
+                }
+                rightSelected = new List<ThingDef>();
             }
 
             // Reset button
@@ -322,7 +339,9 @@ namespace ArchieVBetterWeight
             {
                 TooltipHandler.TipRegion(resetButton, "Reset both lists to default");
             }
+            #endregion
 
+            #region Bottom buttons
             // ----------------------------------------------------------------------------------------------------------------
             //                                              Bottom Options
             // ----------------------------------------------------------------------------------------------------------------
@@ -376,7 +395,8 @@ namespace ArchieVBetterWeight
             {
                 ResetOtherSettings();
             }
-
+            #endregion
+            
             base.DoSettingsWindowContents(inRect);
         }
 
