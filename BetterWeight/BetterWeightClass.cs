@@ -4,7 +4,9 @@ using Verse;
 using HarmonyLib;
 using RimWorld;
 using UnityEngine;
+using Unity.IO;
 using System.Linq;
+using System.Windows.Input;
 
 
 //if (instance.Settings.devMode)
@@ -169,8 +171,8 @@ namespace ArchieVBetterWeight
         // Outside of the func so it's remembered
         private Vector2 ScrollPositionLeft;
         private Vector2 ScrollPositionRight;
-        private ThingDef leftSelected;
-        private ThingDef rightSelected;
+        private List<ThingDef> leftSelected = new List<ThingDef>();
+        private List<ThingDef> rightSelected = new List<ThingDef>();
 
         /// <summary>
         /// The GUI settings page
@@ -199,7 +201,7 @@ namespace ArchieVBetterWeight
             Rect devModeToggleRect = inRect.RightPart(0.06f).TopPart(0.04f);
             Widgets.CheckboxLabeled(devModeToggleRect, "Dev", ref instance.Settings.devMode);         
             
-
+            #region Left side
             // ----------------------------------------------------------------------------------------------------------------
             //                                      Left side of selection window
             // ----------------------------------------------------------------------------------------------------------------
@@ -231,10 +233,52 @@ namespace ArchieVBetterWeight
                     // Logic for button clicked
                     if (Widgets.ButtonInvisible(butRect: rowRect))
                     {
-                        leftSelected = thing;
-                    }
+                        // Ctrl click lets you select 2+ before moving them
+                        if (Event.current.control || Event.current.command)
+                        {
+                            if (Settings.devMode)
+                            {
+                                Log.Message("Ctrl/Cmd clicked leftside\nBefore:");
+                                Log.Message(String.Join(", ", leftSelected));
+                            }
 
-                    if (leftSelected == thing)
+                            leftSelected.Add(thing);
+
+                            if (Settings.devMode)
+                            {
+                                Log.Message("After:");
+                                Log.Message(String.Join(", ", leftSelected));
+                            }
+                        }
+                        else
+                        {
+                            // Shift click selects all between last clicked and most recently clicked
+                            if (Event.current.shift)
+                            {
+                                if (leftSelected.Count > 0)
+                                {
+                                    int lastSelectedIndex =
+                                        Settings.ToPatch.IndexOf(leftSelected[leftSelected.Count - 1]);
+                                    int currentSelectedIndex = Settings.ToPatch.IndexOf(thing);
+                                    leftSelected = currentSelectedIndex > lastSelectedIndex
+                                        ? Settings.ToPatch.GetRange(lastSelectedIndex,
+                                            currentSelectedIndex - lastSelectedIndex + 1)
+                                        : Settings.ToPatch.GetRange(currentSelectedIndex,
+                                            lastSelectedIndex - currentSelectedIndex);
+                                }
+                                else
+                                {
+                                    leftSelected = new List<ThingDef>() {thing};
+                                }
+                            }
+                            // Normal click clears the currently selected
+                            else
+                            {
+                                leftSelected = new List<ThingDef>() {thing};
+                            }
+                        }
+                    }
+                    if (leftSelected.Contains(thing))
                     {
                         Widgets.DrawHighlightSelected(rowRect);
                     }
@@ -243,7 +287,9 @@ namespace ArchieVBetterWeight
                 }
             }
             Widgets.EndScrollView();
-
+            #endregion
+            
+            #region Right side
             // ----------------------------------------------------------------------------------------------------------------
             //                                      Right side of selection window
             // ----------------------------------------------------------------------------------------------------------------
@@ -276,10 +322,10 @@ namespace ArchieVBetterWeight
                     // Logic for thing clicked
                     if (Widgets.ButtonInvisible(butRect: rowRect))
                     {
-                        rightSelected = thing;
+                        rightSelected = new List<ThingDef>() {thing};
                     }
 
-                    if (rightSelected == thing)
+                    if (rightSelected.Contains(thing))
                     {
                         Widgets.DrawHighlightSelected(rowRect);
                     }
@@ -287,28 +333,38 @@ namespace ArchieVBetterWeight
                 }
             }
             Widgets.EndScrollView();
-
+            #endregion
+            
+            #region Centre
             // ----------------------------------------------------------------------------------------------------------------
             //                                                  Central buttons
             // ----------------------------------------------------------------------------------------------------------------
             // Right arrow
             // Moving from ToPatch to NotToPatch
-            if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).RightPart(0.5f), tex: TexUI.ArrowTexRight) && leftSelected != null)
+            if (Widgets.ButtonImage(
+                butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f)
+                    .LeftPart(pct: 0.1f).RightPart(0.5f), tex: TexUI.ArrowTexRight) && leftSelected != null)
             {
                 // Add and remove them from correct lists
-                Settings.NotToPatch.Add(leftSelected);
-                Settings.ToPatch.Remove(leftSelected);
-
-                leftSelected = null;
+                foreach (ThingDef thing in leftSelected)
+                {
+                    Settings.NotToPatch.Add(thing);
+                    Settings.ToPatch.Remove(thing);
+                }
+                leftSelected = new List<ThingDef>();
             }
             // Left arrow
             // Moving from NotToPatch to ToPatch
-            if (Widgets.ButtonImage(butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(pct: 0.1f).LeftPart(0.5f), tex: TexUI.ArrowTexLeft) && rightSelected != null)
+            if (Widgets.ButtonImage(
+                butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f)
+                    .LeftPart(pct: 0.1f).LeftPart(0.5f), tex: TexUI.ArrowTexLeft) && rightSelected != null)
             {
-                Settings.ToPatch.Add(rightSelected);
-                Settings.NotToPatch.Remove(rightSelected);
-
-                rightSelected = null;
+                foreach (ThingDef thing in rightSelected)
+                {
+                    Settings.NotToPatch.Add(thing);
+                    Settings.ToPatch.Remove(thing);
+                }
+                rightSelected = new List<ThingDef>();
             }
 
             // Reset button
@@ -322,7 +378,9 @@ namespace ArchieVBetterWeight
             {
                 TooltipHandler.TipRegion(resetButton, "Reset both lists to default");
             }
+            #endregion
 
+            #region Bottom
             // ----------------------------------------------------------------------------------------------------------------
             //                                              Bottom Options
             // ----------------------------------------------------------------------------------------------------------------
@@ -376,7 +434,8 @@ namespace ArchieVBetterWeight
             {
                 ResetOtherSettings();
             }
-
+            #endregion
+            
             base.DoSettingsWindowContents(inRect);
         }
 
