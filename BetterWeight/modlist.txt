@@ -1,0 +1,6 @@
+Harmony | https://github.com/pardeike/HarmonyRimWorld
+HugsLib | https://ludeon.com/forums/index.php?topic=28066.0
+Mod Manager | https://ludeon.com/forums/index.php?topic=16120
+MinifyEverything | 
+Better ModMismatch Window | https://github.com/zzzz465/ModMisMatchFormatter
+BetterWeight | http://www.archiev.uk/projects/modding/Rimworld/BetterWeight/

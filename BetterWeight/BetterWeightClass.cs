@@ -229,7 +229,7 @@ namespace ArchieVBetterWeight
                         if (Settings.DefaultToPatch.Contains(thing))
                         {
                             Rect rightPartRow = rowRect.RightPartPixels(47+25);
-                            Widgets.Label(rightPartRow, "BW Default");
+                            Widgets.Label(rightPartRow, "Default");
                         }
 
                         // Logic for thingDef clicked
@@ -312,6 +312,8 @@ namespace ArchieVBetterWeight
                     Settings.ToPatch.Add(thing);
                     Settings.NotToPatch.Remove(thing);
                 }
+
+                SortlistNotToPatchlistToPatch();
                 leftSelected = new List<ThingDef>();
             }
             // Left arrow
@@ -326,6 +328,8 @@ namespace ArchieVBetterWeight
                     Settings.ToPatch.Remove(thing);
                 }
                 rightSelected = new List<ThingDef>();
+
+                SortlistNotToPatchlistToPatch();
             }
 
             // Reset button
