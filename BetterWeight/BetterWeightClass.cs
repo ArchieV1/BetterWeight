@@ -55,7 +55,10 @@ namespace ArchieVBetterWeight
                         var new_mass = BetterWeight.RoundMass(BetterWeight.CalculateMass(req.Thing.def));
                         if (stat.value != 0 && stat.value != 1)
                         {
-                            //Log.Message("Changed mass for " + req.Def.defName + " to " + new_mass, true);
+                            if (BetterWeight.instance.Settings.devMode)
+                            {
+                                Log.Message("Changed mass for " + req.Def.defName + " to " + new_mass, true);
+                            }
                             req.StatBases[index].value = new_mass; //set mass of item here    
                         }
 
@@ -82,9 +85,13 @@ namespace ArchieVBetterWeight
                     };
 
                     req.StatBases.Add(statModifier);
-                    //Log.Message("Added mass for " + req.Thing.def.defName);
+                    if (BetterWeight.instance.Settings.devMode)
+                    {
+                        Log.Message("Added mass for " + req.Thing.def.defName);
+                    }
                 }
             }
+
             // Returns true so function runs with modifed StatReq
             return true; 
         }
@@ -99,9 +106,8 @@ namespace ArchieVBetterWeight
             if (BetterWeight.instance.Settings.devMode)
             { Log.Warning("StaticClass"); LogAllBuildings(); }
             BetterWeight.SetDefaultSettingsIfNeeded();
-
-            
         }
+
         public static void LogAllBuildings()
         {
             List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
@@ -114,13 +120,10 @@ namespace ArchieVBetterWeight
                     buildings.Add(thing);
                 }
             }
-            foreach (ThingDef thing in buildings)
-            {
-                Log.Message(thing.defName, true);
-            }
+
+            Log.Message(string.Join("\n", buildings), true);
         }
     }
-    
     
     class BetterWeight : Mod
     {
@@ -438,6 +441,11 @@ namespace ArchieVBetterWeight
                 newMass = (float)Math.Round(initMass, instance.Settings.numberOfDPToRoundTo, MidpointRounding.AwayFromZero);
             }
 
+            if(newMass == 0f)
+            {
+                newMass = 0.5f;
+            }
+
             return newMass;
         }
 
@@ -448,16 +456,26 @@ namespace ArchieVBetterWeight
         /// <returns>The (new) mass of the passed value</returns>
         public static float CalculateMass(ThingDef thing)
         {
-            //Log.Warning("Start CalculateMass");
+            if (BetterWeight.instance.Settings.devMode)
+            {
+                Log.Warning("Start CalculateMass");
+            }
+
             float mass = 0.00f;
             try
-
             {
                 if (thing.costList != null)
                 {
                     foreach (ThingDefCountClass part in thing.costList)
                     {
                         mass += part.thingDef.BaseMass * part.count * instance.Settings.defaultEfficiency / 100f;
+                    }
+                }
+                else
+                {
+                    if (BetterWeight.instance.Settings.devMode)
+                    {
+                        Log.Warning($"{thing} has no costList");
                     }
                 }
             }
@@ -471,14 +489,21 @@ namespace ArchieVBetterWeight
                 {
                     mass += thing.costStuffCount * (instance.Settings.defaultEfficiency / 100f);
                 }
+                else
+                {
+                    Log.Warning($"{thing} has no costStuffCount");
+                }
             }
             catch (Exception e)
             {
                 Log.Message(e.ToString());
             }
 
-            //Log.Message("END CalculateMass");
-            //Log.Error(thing.defName + thing.costStuffCount);
+            if (BetterWeight.instance.Settings.devMode)
+            {
+                Log.Message("END CalculateMass");
+                Log.Error(thing.defName + thing.costStuffCount);
+            }
             return mass;
         }
 
