@@ -120,7 +120,7 @@ namespace ArchieVBetterWeight
         public static Dictionary<string, float> massMap = new Dictionary<string, float>();
         //Cache for the calculated values, including stuffed permutations
         public static Dictionary<string, float> cachedMassMap = new Dictionary<string, float>();
-        //Contains all changed defs, theoretically improving performance over recalculating everything each time the mod menu is opened
+        //Contains all changed defs, theoretically improving performance over recalculating everything each time the mod menu is closed
         public static List<ThingDef> changedDefs = new List<ThingDef>();
         //Contains all stuff defs for faster recalculation
         public static List<ThingDef> stuffDefs = new List<ThingDef>();
@@ -163,7 +163,6 @@ namespace ArchieVBetterWeight
                 {
                     //Add the original value to the mass dictionary on startup
                     if (firstLoad) massMap.Add(def.defName, def.BaseMass);
-                    //Add every building at first, in case the user wants to patch it later mid-game
                     if (ShouldPatch(def)) buildings.Add(def);
                 }
                 if (def.IsStuff)
@@ -172,7 +171,7 @@ namespace ArchieVBetterWeight
                 }
             }
 
-            //Iterate through all buildings
+            //Iterate through all buildings to be patched
             foreach (var buildingDef in buildings)
             {
                 if (DevMode()) Log.Message($"Iterating through building: {buildingDef.defName}");
@@ -211,7 +210,7 @@ namespace ArchieVBetterWeight
             }
         }
 
-        //Assigns the better mass and creates one if necessary
+        //Assigns the better mass and creates the respective stat if necessary
         static void PatchMass(ThingDef def)
         {
             foreach (var stat in def.statBases)
