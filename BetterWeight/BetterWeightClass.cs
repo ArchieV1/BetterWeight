@@ -261,7 +261,7 @@ namespace ArchieVBetterWeight
                 Log.Message("BetterWeight: Recalculating changed buildings...");
                 foreach (var def in changedDefs)
                 {
-                    if(devMode()) Log.Message($"Now recalculating {def.defName}")
+                    if (DevMode()) Log.Message($"Now recalculating {def.defName}");
                     //Remove/add all permutations if it's made from stuff so the harmony patch works properly
                     if (def.MadeFromStuff)
                     {
