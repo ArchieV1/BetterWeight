@@ -54,7 +54,11 @@ namespace ArchieVBetterWeight
     {
         static StaticClass()
         {
-            if (BetterWeight.instance.Settings.devMode) Log.Warning("StaticClass"); LogAllBuildings(); 
+            if (BetterWeight.instance.Settings.devMode)
+            {
+                Log.Warning("StaticClass");
+                LogAllBuildings();
+            }
             BetterWeight.SetDefaultSettingsIfNeeded();
             try
             {
@@ -71,7 +75,8 @@ namespace ArchieVBetterWeight
             }
 
         }
-        public static void LogAllBuildings()
+
+        private static void LogAllBuildings()
         {
             for (var i = 0; i < DefDatabase<ThingDef>.AllDefsListForReading.Count; i++)
             {
@@ -90,15 +95,15 @@ namespace ArchieVBetterWeight
         public static BetterWeight instance;
         public BetterWeightSettings settings;
         //Cache for the original XML defined mass values, in case the user wants to unpatch them mid-game
-        public static Dictionary<string, float> massMap = new Dictionary<string, float>();
+        private static Dictionary<string, float> massMap = new Dictionary<string, float>();
         //Cache for the calculated values, including stuffed permutations
         public static Dictionary<string, float> cachedMassMap = new Dictionary<string, float>();
         //Contains all changed defs, theoretically improving performance over recalculating everything each time the mod menu is closed
-        public static List<ThingDef> changedDefs = new List<ThingDef>();
+        private static List<ThingDef> changedDefs = new List<ThingDef>();
         //Contains all stuff defs for faster recalculation
-        public static List<ThingDef> stuffDefs = new List<ThingDef>();
+        private static List<ThingDef> stuffDefs = new List<ThingDef>();
         //List containing the old settings, to be checked against the new settings after the mod menu is closed
-        public static object[] oldSettings = new object[3];
+        private static object[] oldSettings = new object[3];
 
         // NOTE
         // This is "Settings" not "settings". ALWAYS USE THIS ONE
@@ -120,7 +125,7 @@ namespace ArchieVBetterWeight
         }
 
         //Convenience property to save space
-        private static bool DevMode => instance.settings.devMode;
+        public static bool DevMode => instance.settings.devMode;
 
         public static void CalculateAllMasses(bool firstLoad)
         {
@@ -228,7 +233,7 @@ namespace ArchieVBetterWeight
         }
 
         //Compares the old settings against the new ones. Yes, it's pretty primitive, but it works. It also shouldn't reload when dev mode is toggled
-        private static bool SettingsChanged() => !(oldSettings[0].Equals(instance.settings.defaultEfficiency) && oldSettings[1].Equals(instance.settings.numberOfDPToRoundTo) && oldSettings[2].Equals(instance.settings.roundToNearest5));
+        private static bool SettingsChanged() => !(oldSettings[0].Equals(instance.Settings.defaultEfficiency) && oldSettings[1].Equals(instance.Settings.numberOfDPToRoundTo) && oldSettings[2].Equals(instance.Settings.roundToNearest5));
 
         public override void WriteSettings()
         {
