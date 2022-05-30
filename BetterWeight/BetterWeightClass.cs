@@ -6,12 +6,8 @@ using System.Linq;
 using HarmonyLib;
 using RimWorld;
 
-//if (instance.Settings.devMode)
-//{ Log.Warning("SetDefaultSettingsIfNeeded"); }
-
 namespace ArchieVBetterWeight
 {
-
     [HarmonyPatch(typeof(StatWorker))]
     [HarmonyPatch(nameof(StatWorker.GetValueUnfinalized))]
     static class StatWorker_GetValueUnfinalized_Patch
@@ -41,11 +37,9 @@ namespace ArchieVBetterWeight
                 // Returns true so function runs with modifed StatReq
                 return true;
             }
-
             //Always return true to prevent any hiccups
             return true;
         }
-
     }
 
     // Exists just to use this constructor
@@ -73,7 +67,6 @@ namespace ArchieVBetterWeight
                 Log.Error("Failed to load BetterWeight.");
                 Log.Error("Please leave a bug report at https://github.com/ArchieV1/BetterWeight");
             }
-
         }
 
         private static void LogAllBuildings()
@@ -88,7 +81,6 @@ namespace ArchieVBetterWeight
             }
         }
     }
-
 
     class BetterWeight : Mod
     {
@@ -174,7 +166,6 @@ namespace ArchieVBetterWeight
                 }
                 PatchMass(buildingDef);
             }
-
             Log.Message("BetterWeight: Finished (re-) calculating!");
         }
 
@@ -381,8 +372,7 @@ namespace ArchieVBetterWeight
                                 {
                                     if (selectedArray.Count > 0)
                                     {
-                                        int lastSelectedIndex =
-                                            list.IndexOf(selectedArray[selectedArray.Count - 1]);
+                                        int lastSelectedIndex = list.IndexOf(selectedArray[selectedArray.Count - 1]);
                                         int currentSelectedIndex = list.IndexOf(thing);
                                         selectedArray = currentSelectedIndex > lastSelectedIndex
                                             ? list.GetRange(lastSelectedIndex,
@@ -591,8 +581,6 @@ namespace ArchieVBetterWeight
                 mass += part.thingDef.BaseMass * part.count;
             }
 
-            //Log.Message("END CalculateMass");
-            //Log.Error(thing.defName + thing.costStuffCount);
             if (DevMode) Log.Message($"Calculated mass for: {thing.defName} using stuffMass: {stuffMass} is {mass * instance.settings.defaultEfficiency / 100}");
             return mass == 0F ? 1F : mass * instance.settings.defaultEfficiency * 0.01F;
         }
