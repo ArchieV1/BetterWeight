@@ -1,22 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using Verse;
-using HarmonyLib;
-using RimWorld;
 using UnityEngine;
 using System.Linq;
-using System.ComponentModel;
-using System.Diagnostics;
+using HarmonyLib;
+using RimWorld;
+
+//if (instance.Settings.devMode)
+//{ Log.Warning("SetDefaultSettingsIfNeeded"); }
 
 namespace ArchieVBetterWeight
 {
+
     [HarmonyPatch(typeof(StatWorker))]
     [HarmonyPatch(nameof(StatWorker.GetValueUnfinalized))]
     static class StatWorker_GetValueUnfinalized_Patch
     {
         /// <summary>
         /// Runs before GetValueUnfinalized
-        /// With nullcheck, if requested value of mass does not exist (So it is using default) then add a mass value and calculate it
+        /// With null check, only assigns a modified value if its permutation exists
         /// </summary>
         /// <param name="__result"></param>
         /// <param name="req"></param>
@@ -24,110 +26,26 @@ namespace ArchieVBetterWeight
         /// <returns></returns>
         static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
         {
-            // NOTE
-            // Do not put any logging in here. It runs too many times and will clog the log
-
-            float stuffMass = 0;
-
             // Quick check to make sure thing isn't null
-            if (req.Thing == null || req.Thing.def == null || req.StatBases == null)
+            if (req.StuffDef == null || req.Thing == null || !req.Thing.def.MadeFromStuff || req.Thing.def.category != ThingCategory.Building || req.BuildableDef.statBases == null)
             {
                 return true;
             }
-
-            if (req.Thing.def.defName.ToUpper().Contains("DOOR"))
+            string identifier = req.Thing.def.defName + req.StuffDef.defName;
+            if (!BetterWeight.cachedMassMap.ContainsKey(identifier)) return true;
+            for (int i = 0; i < req.BuildableDef.statBases.Count; i++)
             {
-                Log.Error("DOOR");
-                stuffMass = req.Thing.Stuff.GetStatValueAbstract(StatDefOf.Mass);
-                Log.Message($"{req.Thing}'s stuff ({req.Thing.Stuff.defName}) has a mass {stuffMass} FIRST ONE", true);
-                Log.Message($"Should patch door: {BetterWeight.ShouldPatch(req.Thing.def)}");
-                for (var index = 0; index < req.StatBases.Count; index++)
-                {
-                    Log.Message(req.StatBases[index].ToString());
-                }
-
-                //DOOR JUST DOESNT REQUEST WEIGHT????
-                StackTrace stackTrace = new StackTrace();
-                StackFrame[] stackFrames = stackTrace.GetFrames();
-
-                var list = new List<string>();
-                list.AddRange(stackFrames.Select(frame => frame.GetMethod().Name));
-                list.Remove(stackFrames[0].GetMethod().Name);
-                Log.Error("Traceback door");
-                Log.Error(string.Join(", ", list));
+                StatModifier stat = req.BuildableDef.statBases[i];
+                if (stat.stat.label != "mass") continue;
+                stat.value = BetterWeight.cachedMassMap[identifier];
+                // Returns true so function runs with modifed StatReq
+                return true;
             }
 
-            if (req.Thing.Stuff != null)
-            {
-                stuffMass = req.Thing.Stuff.GetStatValueAbstract(StatDefOf.Mass);
-                if (BetterWeight.instance.Settings.devMode)
-                {
-                    Log.Message($"{req.Thing}'s stuff ({req.Thing.Stuff.defName}) has a mass {stuffMass} SECOND ONE", true);
-                }
-            }
-
-            if (BetterWeight.ShouldPatch(req.Thing.def))
-            {
-                bool needsMass = true;
-                for (var index = 0; index < req.StatBases.Count; index++) //iterate through all stats in request
-                {
-                    var stat = req.StatBases[index]; //get current stat
-                    if (stat.stat.label == "mass") //check if it is the mass
-                    {
-                        var new_mass = BetterWeight.RoundMass(BetterWeight.CalculateMass(req.Thing.def, stuffMass));
-                        if (stat.value != 0 && stat.value != 1)
-                        {
-                            req.StatBases[index].value = new_mass; //set mass of item here    
-                        }
-
-                        needsMass = false;
-
-                        StackTrace stackTrace = new StackTrace();
-                        StackFrame[] stackFrames = stackTrace.GetFrames();
-
-                        var list = new List<string>();
-                        list.AddRange(stackFrames.Select(frame => frame.GetMethod().Name));
-                        list.Remove(stackFrames[0].GetMethod().Name);
-                        Log.Error("Traceback for mass");
-                        Log.Error(string.Join(", ", list));
-                    }
-                }
-
-                if (needsMass)
-                {
-                    if (req.Thing.def.costList == null)
-                    {
-                        return true;
-                    }
-
-                    if (req.Thing.def.costList.Count == 0)
-                    {
-                        return true;
-                    }
-
-                    StatModifier statModifier = new StatModifier
-                    {
-                        stat = StatDefOf.Mass,
-                        value = BetterWeight.CalculateMass(req.Thing.def, stuffMass)
-                    };
-
-                    req.StatBases.Add(statModifier);
-                }
-            }
-
-            // Returns true so function runs with modifed StatReq
-            return true; 
+            //Always return true to prevent any hiccups
+            return true;
         }
-    }
 
-    [HarmonyPatch(typeof(Building_Door))]
-    [HarmonyPatch((".ctor"))]
-    static class DoorMass_Patch
-    {
-        static void Postfix(Building_Door __instance)
-        {
-            __instance.def.BaseMass = BetterWeight.RoundMass(BetterWeight.CalculateMass(__instance.def.BaseMass, __instance.Stuff.BaseMass));
-        }
     }
 
     // Exists just to use this constructor
@@ -137,33 +55,55 @@ namespace ArchieVBetterWeight
         static StaticClass()
         {
             if (BetterWeight.instance.Settings.devMode)
-            { Log.Warning("BetterWeight all buildings:"); LogAllBuildings(); }
-
-            BetterWeight.SetDefaultSettingsIfNeeded();
-        }
-
-        public static void LogAllBuildings()
-        {
-            List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
-            List<ThingDef> buildings = new List<ThingDef>();
-
-            foreach (ThingDef thing in things)
             {
-                if (thing.category == ThingCategory.Building && !thing.defName.Contains("Frame"))
-                {
-                    buildings.Add(thing);
-                }
+                Log.Warning("StaticClass");
+                LogAllBuildings();
+            }
+            BetterWeight.SetDefaultSettingsIfNeeded();
+            try
+            {
+                Log.Message($"{DateTime.Now:HH:mm:ss tt} Loading BetterWeight...");
+                BetterWeight.RefreshSettings();
+                BetterWeight.CalculateAllMasses(true);
+                Log.Message($"{DateTime.Now:HH:mm:ss tt} Finished loading BetterWeight");
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+                Log.Error("Failed to load BetterWeight.");
+                Log.Error("Please leave a bug report at https://github.com/ArchieV1/BetterWeight");
             }
 
-            Log.Message(string.Join("\n", buildings), true);
+        }
+
+        private static void LogAllBuildings()
+        {
+            for (var i = 0; i < DefDatabase<ThingDef>.AllDefsListForReading.Count; i++)
+            {
+                var thing = DefDatabase<ThingDef>.AllDefsListForReading[i];
+                if (thing.category == ThingCategory.Building && !thing.defName.Contains("Frame"))
+                {
+                    Log.Message(thing.defName, true);
+                }
+            }
         }
     }
-    
+
+
     class BetterWeight : Mod
     {
         public static BetterWeight instance;
         public BetterWeightSettings settings;
-        private List<ThingDef> alreadyLogged;
+        //Cache for the original XML defined mass values, in case the user wants to unpatch them mid-game
+        private static Dictionary<string, float> massMap = new Dictionary<string, float>();
+        //Cache for the calculated values, including stuffed permutations
+        public static Dictionary<string, float> cachedMassMap = new Dictionary<string, float>();
+        //Contains all changed defs, theoretically improving performance over recalculating everything each time the mod menu is closed
+        private static List<ThingDef> changedDefs = new List<ThingDef>();
+        //Contains all stuff defs for faster recalculation
+        private static List<ThingDef> stuffDefs = new List<ThingDef>();
+        //List containing the old settings, to be checked against the new settings after the mod menu is closed
+        private static object[] oldSettings = new object[3];
 
         // NOTE
         // This is "Settings" not "settings". ALWAYS USE THIS ONE
@@ -179,26 +119,168 @@ namespace ArchieVBetterWeight
         /// <param name="content"></param>
         public BetterWeight(ModContentPack content) : base(content)
         {
-            try
+            instance = this;
+            Harmony harmony = new Harmony("uk.ArchieV.projects.modding.Rimworld.BetterWeight");
+            harmony.PatchAll();
+        }
+
+        //Convenience property to save space
+        public static bool DevMode => instance.settings.devMode;
+
+        public static void CalculateAllMasses(bool firstLoad)
+        {
+            Log.Message("BetterWeight: (Re-) Calculating all masses...");
+            cachedMassMap.Clear();
+            List<ThingDef> buildings = new List<ThingDef>();
+
+            foreach (var def in DefDatabase<ThingDef>.AllDefs)
             {
-                Log.Message(DateTime.Now.ToString("HH:mm:ss tt") + " Loading BetterWeight...");
-
-                //Log.Error(String.Join(",", CostListCalculator.CostListAdjusted(thing)));
-                instance = this;
-                alreadyLogged = new List<ThingDef>();
-
-                Harmony harmony = new Harmony("uk.ArchieV.projects.modding.Rimworld.BetterWeight");
-                harmony.PatchAll();
-
-                Log.Message(DateTime.Now.ToString("HH:mm:ss tt") + " Finished loading BetterWeight");
+                if (def.category == ThingCategory.Building)
+                {
+                    //Add the original value to the mass dictionary on startup
+                    if (firstLoad) massMap.Add(def.defName, def.BaseMass);
+                    if (ShouldPatch(def))
+                    {
+                        buildings.Add(def);
+                        continue;
+                    }
+                    //Stuffed buildings will not default back to their original value without this
+                    if (massMap.ContainsKey(def.defName) && def.BaseMass != massMap[def.defName]) SetMassValueTo(def, massMap[def.defName]);
+                }
+                if (def.IsStuff)
+                {
+                    stuffDefs.Add(def);
+                }
             }
-            catch (Exception e)
+
+            //Iterate through all buildings to be patched
+            for (var i = 0; i < buildings.Count; i++)
             {
-                Log.Error(e.ToString());
-                Log.Error("Failed to load BetterWeight.");
-                Log.Error("Please leave a bug report at https://github.com/ArchieV1/BetterWeight");
+                var buildingDef = buildings[i];
+                if (DevMode) Log.Message($"Iterating through building: {buildingDef.defName}");
+                //If it's stuffable, calculate every permutation
+                if (buildingDef.MadeFromStuff)
+                {
+                    foreach (var stuff in CalculatePermutations(buildingDef))
+                    {
+                        //Only add the permutation if it doesn't already exist
+                        string identifier = buildingDef.defName + stuff.defName;
+                        if (!firstLoad) cachedMassMap.Remove(identifier);
+                        if (!cachedMassMap.ContainsKey(identifier))
+                        {
+                            cachedMassMap.Add(identifier, RoundMass(CalculateMass(buildingDef, stuff.BaseMass)));
+                        }
+                    }
+                }
+                PatchMass(buildingDef);
             }
 
+            Log.Message("BetterWeight: Finished (re-) calculating!");
+        }
+
+        private static IEnumerable<ThingDef> CalculatePermutations(ThingDef buildingDef)
+        {
+            //Go through every StuffCategory for the building
+            for (var stuffCategoryIndex = 0; stuffCategoryIndex < buildingDef.stuffCategories.Count; stuffCategoryIndex++)
+            {
+                var stuffCategoryDef = buildingDef.stuffCategories[stuffCategoryIndex];
+                if (DevMode) Log.Message($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}");
+                for (var i = 0; i < stuffDefs.Count; i++)
+                {
+                    var stuffDef = stuffDefs[i];
+                    if (DevMode) Log.Message($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}; Checking stuff: {stuffDef.defName}");
+                    if (!stuffDef.stuffProps.categories.Contains(stuffCategoryDef)) continue;
+                    if (DevMode) Log.Message($"Added: Building: {buildingDef.defName}; StuffCategoryDef: {stuffCategoryDef.defName}; Stuff: {stuffDef.defName}; identifier: {buildingDef.defName + stuffDef.defName}");
+                    yield return stuffDef;
+                }
+            }
+        }
+
+        private static bool SetMassValueTo(ThingDef def, float value)
+        {
+            for (var i = 0; i < def.statBases.Count; i++)
+            {
+                var stat = def.statBases[i];
+                if (stat.stat.label != "mass") continue;
+                stat.value = value;
+                return true;
+            }
+            return false;
+        }
+
+        //Assigns the better mass and creates the respective stat if necessary
+        private static void PatchMass(ThingDef def)
+        {
+            if (SetMassValueTo(def, RoundMass(CalculateMass(def))) && DevMode)
+            {
+                Log.Message($"BetterWeight: Added: {def.defName}; New weight: {RoundMass(CalculateMass(def))}");
+                return;
+            }
+            
+            def.statBases.Add(new StatModifier()
+            {
+                stat = StatDefOf.Mass,
+                value = RoundMass(CalculateMass(def))
+            });
+            if (DevMode) Log.Message($"BetterWeight: Added new mass stat for: {def.defName}");
+        }
+
+        public static void RefreshSettings()
+        {
+            oldSettings[0] = instance.settings.defaultEfficiency;
+            oldSettings[1] = instance.settings.numberOfDPToRoundTo;
+            oldSettings[2] = instance.settings.roundToNearest5;
+        }
+
+        //Compares the old settings against the new ones. Yes, it's pretty primitive, but it works. It also shouldn't reload when dev mode is toggled
+        private static bool SettingsChanged() => !(oldSettings[0].Equals(instance.Settings.defaultEfficiency) && oldSettings[1].Equals(instance.Settings.numberOfDPToRoundTo) && oldSettings[2].Equals(instance.Settings.roundToNearest5));
+
+        public override void WriteSettings()
+        {
+            base.WriteSettings();
+            if (SettingsChanged())
+            {
+                CalculateAllMasses(false);
+                changedDefs.Clear();
+                RefreshSettings();
+                return;
+            }
+            //Recalculate the buildings that have been changed, but only if none of the other settings were touched
+            if (changedDefs.Count > 0)
+            {
+                Log.Message("BetterWeight: Recalculating changed buildings...");
+                for (var changedDefIndex = 0; changedDefIndex < changedDefs.Count; changedDefIndex++)
+                {
+                    var def = changedDefs[changedDefIndex];
+                    if (DevMode) Log.Message($"Now recalculating {def.defName}");
+                    //Remove/add all permutations if it's made from stuff so the harmony patch works properly
+                    if (def.MadeFromStuff)
+                    {
+                        foreach (var stuffDef in CalculatePermutations(def))
+                        {
+                            string identifier = def.defName + stuffDef.defName;
+                            if (ShouldPatch(def) && !cachedMassMap.ContainsKey(identifier)) cachedMassMap.Add(identifier, RoundMass(CalculateMass(def, stuffDef.BaseMass)));
+                            if (!ShouldPatch(def) && cachedMassMap.ContainsKey(identifier)) cachedMassMap.Remove(identifier);
+                        }
+                    }
+
+                    if (ShouldPatch(def))
+                    {
+                        PatchMass(def);
+                        continue;
+                    }
+
+                    for (var i = 0; i < def.statBases.Count; i++)
+                    {
+                        var stat = def.statBases[i];
+                        //Set the value back to the original XML defined value
+                        if (stat.stat.label == "mass") stat.value = massMap[def.defName];
+                    }
+                }
+
+                Log.Message("BetterWeight: Finished recalculating!");
+            }
+            changedDefs.Clear();
         }
 
         #region SettingsMenu
@@ -229,7 +311,7 @@ namespace ArchieVBetterWeight
             Rect topRect = inRect.TopPart(0.10f);
             Rect MainRect = inRect.BottomPart(0.90f).TopPart(0.75f);
 
-            Widgets.Label(topRect.TopHalf(), "If you disable an object from using BetterWeight you must restart your game for changes to take effect");
+            Widgets.Label(topRect.TopHalf(), "Changed buildings will be automatically hot swapped");
 
             Rect leftSide = MainRect.LeftPart(0.46f);
             Rect rightSide = MainRect.RightPart(0.46f);
@@ -268,8 +350,8 @@ namespace ArchieVBetterWeight
                         // Say if this "thing" is by default patched or not
                         if (Settings.DefaultToPatch.Contains(thing))
                         {
-                            Rect rightPartRow = rowRect.RightPartPixels(47+25);
-                            Widgets.Label(rightPartRow, "Default");
+                            Rect rightPartRow = rowRect.RightPartPixels(47 + 25);
+                            Widgets.Label(rightPartRow, "BW Default");
                         }
 
                         // Logic for thingDef clicked
@@ -280,7 +362,7 @@ namespace ArchieVBetterWeight
                             {
                                 if (Settings.devMode)
                                 {
-                                    Log.Message("Ctrl/Cmd clicked" + sideStr + "\nBefore:");
+                                    Log.Message($"Ctrl/Cmd clicked{sideStr}\nBefore:");
                                     Log.Message(String.Join(", ", selectedArray));
                                 }
 
@@ -310,13 +392,13 @@ namespace ArchieVBetterWeight
                                     }
                                     else
                                     {
-                                        selectedArray = new List<ThingDef>() {thing};
+                                        selectedArray = new List<ThingDef>() { thing };
                                     }
                                 }
                                 // Normal click clears the currently selected
                                 else
                                 {
-                                    selectedArray = new List<ThingDef>() {thing};
+                                    selectedArray = new List<ThingDef>() { thing };
                                 }
                             }
                         }
@@ -332,7 +414,7 @@ namespace ArchieVBetterWeight
 
                 return selectedArray;
             }
-            
+
             leftSelected = generateSelectionWindow("leftSide", leftSide, Settings.NotToPatch, "Use Default Mass", "All things in this category will not be effected by BetterMass and will instead use their default mass", ref ScrollPositionLeft, leftSelected);
             rightSelected = generateSelectionWindow("rightSide", rightSide, Settings.ToPatch, "Use BetterWeight", "", ref ScrollPositionRight, rightSelected);
 
@@ -351,9 +433,8 @@ namespace ArchieVBetterWeight
                 {
                     Settings.ToPatch.Add(thing);
                     Settings.NotToPatch.Remove(thing);
+                    if (!changedDefs.Contains(thing)) changedDefs.Add(thing);
                 }
-
-                SortlistNotToPatchlistToPatch();
                 leftSelected = new List<ThingDef>();
             }
             // Left arrow
@@ -366,10 +447,9 @@ namespace ArchieVBetterWeight
                 {
                     Settings.NotToPatch.Add(thing);
                     Settings.ToPatch.Remove(thing);
+                    if (!changedDefs.Contains(thing)) changedDefs.Add(thing);
                 }
                 rightSelected = new List<ThingDef>();
-
-                SortlistNotToPatchlistToPatch();
             }
 
             // Reset button
@@ -377,6 +457,7 @@ namespace ArchieVBetterWeight
             if (Widgets.ButtonText(resetButton, "Reset"))
             {
                 SetListsToDefault();
+                CalculateAllMasses(false);
                 base.DoSettingsWindowContents(inRect);
             }
             if (Mouse.IsOver(resetButton))
@@ -440,7 +521,7 @@ namespace ArchieVBetterWeight
                 ResetOtherSettings();
             }
             #endregion
-            
+
             base.DoSettingsWindowContents(inRect);
         }
 
@@ -454,7 +535,6 @@ namespace ArchieVBetterWeight
         }
 
         #endregion
-
         #region PatchFunctions
         /// ---------------------------------------------------------------------------------------------------------------------
         ///                                             Patch functions
@@ -471,17 +551,12 @@ namespace ArchieVBetterWeight
 
             if (instance.Settings.roundToNearest5)
             {
-                newMass = (float) Math.Round(initMass * 5f, instance.Settings.numberOfDPToRoundTo, MidpointRounding.AwayFromZero) / 5f;
-                newMass = (float) Math.Round(newMass, instance.Settings.numberOfDPToRoundTo);
+                newMass = (float)Math.Round(initMass * 5f, instance.Settings.numberOfDPToRoundTo, MidpointRounding.AwayFromZero) / 5f;
+                newMass = (float)Math.Round(newMass, instance.Settings.numberOfDPToRoundTo);
             }
             else
             {
-                newMass = (float) Math.Round(initMass, instance.Settings.numberOfDPToRoundTo, MidpointRounding.AwayFromZero);
-            }
-
-            if(newMass == 0f)
-            {
-                newMass = 0.5f;
+                newMass = (float)Math.Round(initMass, instance.Settings.numberOfDPToRoundTo, MidpointRounding.AwayFromZero);
             }
 
             return newMass;
@@ -492,71 +567,36 @@ namespace ArchieVBetterWeight
         /// </summary>
         /// <param name="thing">The thing to have its new value calculated</param>
         /// <returns>The (new) mass of the passed value</returns>
-        public static float CalculateMass(ThingDef thing, float stuffMass)
+        public static float CalculateMass(ThingDef thing, float stuffMass = 1)
         {
+            //Log.Warning("Start CalculateMass");
+            //if(devMode()) Log.Message($"Now calculating mass for: {thing.defName} using stuffMass: {stuffMass}");
             float mass = 0.00f;
-            if (thing.defName.ToUpper() == "DOOR")
+
+            if (thing.MadeFromStuff)
             {
-                Log.Error($"DOOR: costStuffCount: {thing.costStuffCount} * {stuffMass}");
+                //if (devMode()) Log.Message($"{thing.defName} is made out of stuff, adding extra weight...");
+                mass += stuffMass * thing.costStuffCount;
             }
 
-                if (instance.Settings.devMode &&
-                !instance.alreadyLogged.Contains(thing) &&
-                thing.costList == null && 
-                thing.costStuffCount == 0)
+            if (thing.costList.NullOrEmpty())
             {
-                Log.Error($"{thing} has no costList AND no costStuffCount", true);
+                //if (devMode()) Log.Message($"Could not find any additional ingredients for {thing.defName}");
+                return mass == 0F ? 1F : mass * instance.settings.defaultEfficiency / 100;
             }
 
-            try
+            for (var i = 0; i < thing.costList.Count; i++)
             {
-                if (thing.costList != null)
-                {
-                    foreach (ThingDefCountClass part in thing.costList)
-                    {
-                        mass += part.thingDef.BaseMass * part.count * instance.Settings.defaultEfficiency / 100f;
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Log.Error(e.ToString());
+                var part = thing.costList[i];
+                mass += part.thingDef.BaseMass * part.count;
             }
 
-            try
-            {
-                if (thing.costStuffCount != 0)
-                {
-                    if (stuffMass == 0)
-                    {
-                        if (instance.Settings.devMode)
-                        {
-                            Log.Error($"stuffMass is 0 for {thing}'s\nDefaulting to 1", true);
-                        }
-                        stuffMass = 1;
-                    }
-
-                    mass += thing.costStuffCount * stuffMass * instance.Settings.defaultEfficiency / 100f;
-                    Log.Message($"{thing}: {thing.costStuffCount} * {stuffMass} * {instance.Settings.defaultEfficiency} / 100f = {mass}");
-                }
-                else
-                {
-                    Log.Message($"{thing.defName}'s costStuccCount = {thing.costStuffCount}");
-                }
-            }
-            catch (Exception e)
-            {
-                Log.Message(e.ToString());
-            }
-
-            if (instance.Settings.devMode && !instance.alreadyLogged.Contains(thing))
-            {
-                Log.Message($"{thing.defName}'s (pre-rounded) mass = {mass}", true);
-            }
-
-            instance.alreadyLogged.Add(thing);
-            return mass;
+            //Log.Message("END CalculateMass");
+            //Log.Error(thing.defName + thing.costStuffCount);
+            if (DevMode) Log.Message($"Calculated mass for: {thing.defName} using stuffMass: {stuffMass} is {mass * instance.settings.defaultEfficiency / 100}");
+            return mass == 0F ? 1F : mass * instance.settings.defaultEfficiency * 0.01F;
         }
+
 
         /// <summary>
         /// If passed value is in listToPatch it should be patched with new weight.
@@ -565,11 +605,9 @@ namespace ArchieVBetterWeight
         /// <returns>true if it should be patched</returns>
         public static bool ShouldPatch(ThingDef thing)
         {
-            if (instance.Settings.ToPatch.Contains(thing)) { return true; }
-            else { return false; }
+            return instance.Settings.ToPatch.Contains(thing);
         }
         #endregion
-
         #region SettingsFunctions
         /// ---------------------------------------------------------------------------------------------------------------------
         ///                                             Settings functions
@@ -589,8 +627,8 @@ namespace ArchieVBetterWeight
         /// </summary>
         public static void GenerateDefaultLists()
         {
-            instance.Settings.DefaultToPatch = GenerateDefaultListToPatch();
-            instance.Settings.DefaultNotToPatch = GenerateDefaultListToNotPatch();
+            instance.Settings.DefaultToPatch = generateDefaultListToPatch();
+            instance.Settings.DefaultNotToPatch = generateDefaultListToNotPatch();
         }
 
         /// <summary>
@@ -609,7 +647,7 @@ namespace ArchieVBetterWeight
                 instance.Settings.ToPatch = instance.Settings.ToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
             }
         }
-        
+
         /// <summary>
         /// Reset all settings to default
         /// </summary>
@@ -636,7 +674,7 @@ namespace ArchieVBetterWeight
         {
             if (instance.Settings.devMode)
             { Log.Warning("SetDefaultSettingsIfNeeded"); }
-            
+
             // Generate the default lists every time to make sure they are correct and save them for the settings menu
             GenerateDefaultLists();
 
@@ -667,7 +705,7 @@ namespace ArchieVBetterWeight
         /// Category = Building && baseMass = 1 && (has either costList or costStuffCount)
         /// </summary>
         /// <returns>List of thingDefs that should have a new mass calculated by default</returns>
-        public static List<ThingDef> GenerateDefaultListToPatch()
+        public static List<ThingDef> generateDefaultListToPatch()
         {
             List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
             List<ThingDef> toPatch = new List<ThingDef>();
@@ -688,7 +726,7 @@ namespace ArchieVBetterWeight
         /// Generates list of ThingDefs that are, by default, not to be patched.
         /// </summary>
         /// <returns>List of thingDefs that should not have a new mass calculated by default</returns>
-        public static List<ThingDef> GenerateDefaultListToNotPatch()
+        public static List<ThingDef> generateDefaultListToNotPatch()
         {
             List<ThingDef> things = (List<ThingDef>)DefDatabase<ThingDef>.AllDefs;
             List<ThingDef> toNotPatch = new List<ThingDef>();
