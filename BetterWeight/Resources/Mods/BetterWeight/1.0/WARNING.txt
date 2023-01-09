@@ -1,0 +1,1 @@
+Rimworld 1.0 will not check for Defs, Patches or Assemblies here
