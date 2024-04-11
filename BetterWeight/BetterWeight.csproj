@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>D:\Rimworld_Modding\Rimworld 1.4\Mods\BetterWeight\1.4\Assemblies\</OutputPath>
+    <OutputPath>..\..\..\..\Downloads\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -79,6 +79,11 @@
     <Content Include="Resources\Mods\BetterWeight\1.3\Assemblies\0Harmony.xml" />
     <Content Include="Resources\Mods\BetterWeight\1.3\Assemblies\BetterWeight.dll" />
     <Content Include="Resources\Mods\BetterWeight\1.3\Assemblies\BetterWeight.pdb" />
+    <Content Include="Resources\Mods\BetterWeight\1.5\Assemblies\0Harmony.dll" />
+    <Content Include="Resources\Mods\BetterWeight\1.5\Assemblies\0Harmony.xml" />
+    <Content Include="Resources\Mods\BetterWeight\1.5\Assemblies\BetterWeight.dll" />
+    <Content Include="Resources\Mods\BetterWeight\1.5\Assemblies\BetterWeight.pdb" />
+    <Content Include="Resources\Mods\BetterWeight\1.5\Assemblies\HugsLib.dll" />
     <Content Include="Resources\Mods\BetterWeight\1.4\Assemblies\0Harmony.dll" />
     <Content Include="Resources\Mods\BetterWeight\1.4\Assemblies\0Harmony.xml" />
     <Content Include="Resources\Mods\BetterWeight\1.4\Assemblies\HugsLib.dll" />
@@ -93,7 +98,7 @@
       <HintPath>..\..\..\..\Downloads\HarmonyRimWorld\HarmonyRimWorld\Current\Assemblies\0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>D:\Rimworld_Modding\Rimworld 1.4\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\RimWorld\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />

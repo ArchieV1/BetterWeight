@@ -76,7 +76,7 @@ namespace ArchieVBetterWeight
                 var thing = DefDatabase<ThingDef>.AllDefsListForReading[i];
                 if (thing.category == ThingCategory.Building && !thing.defName.Contains("Frame"))
                 {
-                    Log.Message(thing.defName, true);
+                    Log.Message(thing.defName);
                 }
             }
         }
