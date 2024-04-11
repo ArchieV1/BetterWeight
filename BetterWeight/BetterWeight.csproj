@@ -92,6 +92,7 @@
     <Content Include="Resources\Mods\BetterWeight\1.4\Assemblies\BetterWeight.dll" />
     <Content Include="Resources\Mods\BetterWeight\1.4\Assemblies\BetterWeight.pdb" />
     <Content Include="Resources\Mods\BetterWeight\About\preview.png" />
+    <Content Include="Resources\Mods\BetterWeight\About\PublishedFileId.txt" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="0Harmony">
