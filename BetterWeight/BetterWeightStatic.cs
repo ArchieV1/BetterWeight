@@ -3,18 +3,22 @@ using Verse;
 
 namespace ArchieVBetterWeight
 {
-    // Exists just to use this constructor
+    /// <summary>
+    /// Exists just to use this constructor annotation.
+    /// </summary>
     [StaticConstructorOnStartup]
-    class StaticClass
+    class BetterWeightStatic
     {
-        static StaticClass()
+        static BetterWeightStatic()
         {
-            if (BetterWeight.instance.Settings.devMode)
+            if (BetterWeight.Instance.Settings.DevMode)
             {
                 Log.Warning("StaticClass");
                 LogAllBuildings();
             }
+
             BetterWeight.SetDefaultSettingsIfNeeded();
+
             try
             {
                 Log.Message($"{DateTime.Now:HH:mm:ss tt} Loading BetterWeight...");
@@ -30,6 +34,9 @@ namespace ArchieVBetterWeight
             }
         }
 
+        /// <summary>
+        /// Log all buildings.
+        /// </summary>
         private static void LogAllBuildings()
         {
             for (var i = 0; i < DefDatabase<ThingDef>.AllDefsListForReading.Count; i++)

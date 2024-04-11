@@ -62,7 +62,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="BetterWeightClass.cs" />
+    <Compile Include="BetterWeightSettings.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="BetterWeightStatic.cs" />
+    <Compile Include="StatWorker_GetValueUnfinalized_Patch.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Resources\Mods\BetterWeight\1.0\UNSUPPORTED VERSION.txt" />

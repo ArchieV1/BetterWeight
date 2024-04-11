@@ -33,7 +33,7 @@ namespace ArchieVBetterWeight
                 // Returns true so function runs with modifed StatReq
                 return true;
             }
-            //Always return true to prevent any hiccups
+            // Always return true to prevent any hiccups
             return true;
         }
     }

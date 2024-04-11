@@ -10,26 +10,52 @@ namespace ArchieVBetterWeight
 {
     class BetterWeight : Mod
     {
-        public static BetterWeight instance;
-        public BetterWeightSettings settings;
-        //Cache for the original XML defined mass values, in case the user wants to unpatch them mid-game
+        private BetterWeightSettings settings;
+
+        /// <summary>
+        /// The instance of the BetterWeight.
+        /// </summary>
+        public static BetterWeight Instance { get; set; }
+
+        /// <summary>
+        /// Cache for the original XML defined mass values, in case the user wants to unpatch them mid-game.
+        /// </summary>
         private static Dictionary<string, float> massMap = new Dictionary<string, float>();
-        //Cache for the calculated values, including stuffed permutations
+
+        /// <summary>
+        /// Cache for the calculated values, including stuffed permutations.
+        /// </summary>
         public static Dictionary<string, float> cachedMassMap = new Dictionary<string, float>();
-        //Contains all changed defs, theoretically improving performance over recalculating everything each time the mod menu is closed
+
+        /// <summary>
+        /// Contains all changed defs, theoretically improving performance over recalculating everything each time the mod menu is closed.
+        /// </summary>
         private static List<ThingDef> changedDefs = new List<ThingDef>();
-        //Contains all stuff defs for faster recalculation
+
+        /// <summary>
+        /// Contains all stuff defs for faster recalculation.
+        /// </summary>
         private static List<ThingDef> stuffDefs = new List<ThingDef>();
-        //List containing the old settings, to be checked against the new settings after the mod menu is closed
+
+        /// <summary>
+        /// List containing the old settings, to be checked against the new settings after the mod menu is closed.
+        /// </summary>
         private static object[] oldSettings = new object[3];
 
-        // NOTE
-        // This is "Settings" not "settings". ALWAYS USE THIS ONE
+        /// <summary>
+        /// The settings of the mod.
+        /// </summary>
         internal BetterWeightSettings Settings
         {
             get => settings ?? (settings = GetSettings<BetterWeightSettings>());
             set => settings = value;
         }
+
+
+        /// <summary>
+        /// Gets Instance.settings.devMode.
+        /// </summary>
+        public static bool DevMode => Instance.settings.DevMode;
 
         /// <summary>
         /// Constructor
@@ -37,14 +63,15 @@ namespace ArchieVBetterWeight
         /// <param name="content"></param>
         public BetterWeight(ModContentPack content) : base(content)
         {
-            instance = this;
+            Instance = this;
             Harmony harmony = new Harmony("uk.ArchieV.projects.modding.Rimworld.BetterWeight");
             harmony.PatchAll();
         }
 
-        //Convenience property to save space
-        public static bool DevMode => instance.settings.devMode;
-
+        /// <summary>
+        /// Calculates all of the masses.
+        /// </summary>
+        /// <param name="firstLoad"></param>
         public static void CalculateAllMasses(bool firstLoad)
         {
             Log.Message("BetterWeight: (Re-) Calculating all masses...");
@@ -55,53 +82,76 @@ namespace ArchieVBetterWeight
             {
                 if (def.category == ThingCategory.Building)
                 {
-                    //Add the original value to the mass dictionary on startup
-                    if (firstLoad) massMap.Add(def.defName, def.BaseMass);
+                    // Add the original value to the mass dictionary on startup
+                    if (firstLoad)
+                    {
+                        massMap.Add(def.defName, def.BaseMass);
+                    }
+
                     if (ShouldPatch(def))
                     {
                         buildings.Add(def);
                         continue;
                     }
-                    //Stuffed buildings will not default back to their original value without this
-                    if (massMap.ContainsKey(def.defName) && def.BaseMass != massMap[def.defName]) SetMassValueTo(def, massMap[def.defName]);
+
+                    // Stuffed buildings will not default back to their original value without this
+                    if (massMap.ContainsKey(def.defName) && def.BaseMass != massMap[def.defName])
+                    {
+                        SetMassValueTo(def, massMap[def.defName]);
+                    }
                 }
+
                 if (def.IsStuff)
                 {
                     stuffDefs.Add(def);
                 }
             }
 
-            //Iterate through all buildings to be patched
-            for (var i = 0; i < buildings.Count; i++)
+            // Iterate through all buildings to be patched
+            for (int i = 0; i < buildings.Count; i++)
             {
-                var buildingDef = buildings[i];
+                ThingDef buildingDef = buildings[i];
                 if (DevMode) Log.Message($"Iterating through building: {buildingDef.defName}");
-                //If it's stuffable, calculate every permutation
+
+                // If it's stuffable, calculate every permutation
                 if (buildingDef.MadeFromStuff)
                 {
-                    foreach (var stuff in CalculatePermutations(buildingDef))
+                    foreach (ThingDef stuff in CalculatePermutations(buildingDef))
                     {
-                        //Only add the permutation if it doesn't already exist
+                        // Only add the permutation if it doesn't already exist
                         string identifier = buildingDef.defName + stuff.defName;
-                        if (!firstLoad) cachedMassMap.Remove(identifier);
+
+                        if (!firstLoad)
+                        {
+                            cachedMassMap.Remove(identifier);
+                        }
+
                         if (!cachedMassMap.ContainsKey(identifier))
                         {
                             cachedMassMap.Add(identifier, RoundMass(CalculateMass(buildingDef, stuff.BaseMass)));
                         }
                     }
                 }
+
                 PatchMass(buildingDef);
             }
             Log.Message("BetterWeight: Finished (re-) calculating!");
         }
 
+        /// <summary>
+        /// Calculate all permutations for the given building.
+        /// </summary>
+        /// <param name="buildingDef"></param>
+        /// <returns></returns>
         private static IEnumerable<ThingDef> CalculatePermutations(ThingDef buildingDef)
         {
-            //Go through every StuffCategory for the building
-            for (var stuffCategoryIndex = 0; stuffCategoryIndex < buildingDef.stuffCategories.Count; stuffCategoryIndex++)
+            // Go through every StuffCategory for the building
+            for (int stuffCategoryIndex = 0; stuffCategoryIndex < buildingDef.stuffCategories.Count; stuffCategoryIndex++)
             {
                 var stuffCategoryDef = buildingDef.stuffCategories[stuffCategoryIndex];
+
                 if (DevMode) Log.Message($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}");
+                
                 for (var i = 0; i < stuffDefs.Count; i++)
                 {
                     var stuffDef = stuffDefs[i];
@@ -113,6 +163,13 @@ namespace ArchieVBetterWeight
             }
         }
 
+        /// <summary>
+        /// Updates Mass Value of def to given value if it currently has a mass value.
+        /// MinifyEverything sets this so is needed to add mass to non-vanilla minifiable items.
+        /// </summary>
+        /// <param name="def">The thing whose mass should be updated.</param>
+        /// <param name="value">The new mass.</param>
+        /// <returns>True if the def was updated.</returns>
         private static bool SetMassValueTo(ThingDef def, float value)
         {
             for (var i = 0; i < def.statBases.Count; i++)
@@ -125,7 +182,10 @@ namespace ArchieVBetterWeight
             return false;
         }
 
-        //Assigns the better mass and creates the respective stat if necessary
+        /// <summary>
+        /// Assigns the better mass and creates the respective stat if necessary
+        /// </summary>
+        /// <param name="def"></param>
         private static void PatchMass(ThingDef def)
         {
             if (SetMassValueTo(def, RoundMass(CalculateMass(def))) && DevMode)
@@ -139,18 +199,32 @@ namespace ArchieVBetterWeight
                 stat = StatDefOf.Mass,
                 value = RoundMass(CalculateMass(def))
             });
-            if (DevMode) Log.Message($"BetterWeight: Added new mass stat for: {def.defName}");
+
+            if (DevMode)
+            {
+                Log.Message($"BetterWeight: Added new mass stat for: {def.defName}");
+            }
         }
 
         public static void RefreshSettings()
         {
-            oldSettings[0] = instance.settings.defaultEfficiency;
-            oldSettings[1] = instance.settings.numberOfDPToRoundTo;
-            oldSettings[2] = instance.settings.roundToNearest5;
+            oldSettings[0] = Instance.settings.DefaultEfficiency;
+            oldSettings[1] = Instance.settings.NumberOfDPToRoundTo;
+            oldSettings[2] = Instance.settings.RoundToNearest5;
         }
 
-        //Compares the old settings against the new ones. Yes, it's pretty primitive, but it works. It also shouldn't reload when dev mode is toggled
-        private static bool SettingsChanged() => !(oldSettings[0].Equals(instance.Settings.defaultEfficiency) && oldSettings[1].Equals(instance.Settings.numberOfDPToRoundTo) && oldSettings[2].Equals(instance.Settings.roundToNearest5));
+        /// <summary>
+        /// Compares the old settings against the new ones. Yes, it's pretty primitive, but it works. It also shouldn't reload when dev mode is toggled
+        /// </summary>
+        /// <returns></returns>
+        private static bool SettingsChanged()
+        {
+            return !(
+                oldSettings[0].Equals(Instance.Settings.DefaultEfficiency) &&
+                oldSettings[1].Equals(Instance.Settings.NumberOfDPToRoundTo) &&
+                oldSettings[2].Equals(Instance.Settings.RoundToNearest5)
+                );
+        }
 
         public override void WriteSettings()
         {
@@ -162,7 +236,7 @@ namespace ArchieVBetterWeight
                 RefreshSettings();
                 return;
             }
-            //Recalculate the buildings that have been changed, but only if none of the other settings were touched
+            // Recalculate the buildings that have been changed, but only if none of the other settings were touched
             if (changedDefs.Count > 0)
             {
                 Log.Message("BetterWeight: Recalculating changed buildings...");
@@ -170,7 +244,7 @@ namespace ArchieVBetterWeight
                 {
                     var def = changedDefs[changedDefIndex];
                     if (DevMode) Log.Message($"Now recalculating {def.defName}");
-                    //Remove/add all permutations if it's made from stuff so the harmony patch works properly
+                    // Remove/add all permutations if it's made from stuff so the harmony patch works properly
                     if (def.MadeFromStuff)
                     {
                         foreach (var stuffDef in CalculatePermutations(def))
@@ -190,7 +264,7 @@ namespace ArchieVBetterWeight
                     for (var i = 0; i < def.statBases.Count; i++)
                     {
                         var stat = def.statBases[i];
-                        //Set the value back to the original XML defined value
+                        // Set the value back to the original XML defined value
                         if (stat.stat.label == "mass") stat.value = massMap[def.defName];
                     }
                 }
@@ -238,7 +312,7 @@ namespace ArchieVBetterWeight
             //                                              Dev Options
             // ----------------------------------------------------------------------------------------------------------------
             Rect devModeToggleRect = inRect.RightPart(0.06f).TopPart(0.04f);
-            Widgets.CheckboxLabeled(devModeToggleRect, "Dev", ref instance.Settings.devMode);
+            Widgets.CheckboxLabeled(devModeToggleRect, "Dev", ref Instance.Settings.DevMode);
 
             List<ThingDef> generateSelectionWindow(String sideStr, Rect sideRect, List<ThingDef> list, String title, String titleToolTip, ref Vector2 scrollPosition, List<ThingDef> selectedArray)
             {
@@ -277,7 +351,7 @@ namespace ArchieVBetterWeight
                             // Ctrl click lets you select 2+ before moving them
                             if (Event.current.control || Event.current.command)
                             {
-                                if (Settings.devMode)
+                                if (Settings.DevMode)
                                 {
                                     Log.Message($"Ctrl/Cmd clicked{sideStr}\nBefore:");
                                     Log.Message(String.Join(", ", selectedArray));
@@ -285,7 +359,7 @@ namespace ArchieVBetterWeight
 
                                 selectedArray.Add(thing);
 
-                                if (Settings.devMode)
+                                if (Settings.DevMode)
                                 {
                                     Log.Message("After:");
                                     Log.Message(String.Join(", ", selectedArray));
@@ -397,14 +471,14 @@ namespace ArchieVBetterWeight
             Rect numDPSlider = numDPRect.RightHalf().BottomPart(0.7f);
 
             Widgets.Label(numDPLabel, "Number of Decimal Places to Round Masses to");
-            instance.Settings.numberOfDPToRoundTo = (int)Math.Round(Widgets.HorizontalSlider(numDPSlider, instance.Settings.numberOfDPToRoundTo, 0f, 2f, false, null, "0", "2", -1), MidpointRounding.AwayFromZero);
+            Instance.Settings.NumberOfDPToRoundTo = (int)Math.Round(Widgets.HorizontalSlider(numDPSlider, Instance.Settings.NumberOfDPToRoundTo, 0f, 2f, false, null, "0", "2", -1), MidpointRounding.AwayFromZero);
 
             // roundToNearest5. Bool
             Rect Nearest5Rect = otherSettingsLeft.BottomHalf();
             Rect Nearest5Label = Nearest5Rect.LeftHalf();
             Rect Nearest5Toggle = Nearest5Rect.RightHalf();
 
-            Widgets.CheckboxLabeled(Nearest5Rect, "Round to nearest 5", ref instance.Settings.roundToNearest5);
+            Widgets.CheckboxLabeled(Nearest5Rect, "Round to nearest 5", ref Instance.Settings.RoundToNearest5);
 
             // Right side
             Rect otherSettingsRight = otherSettingsRect.RightPart(0.45f);
@@ -421,7 +495,7 @@ namespace ArchieVBetterWeight
                     "BetterWeight = Sum of all components × Efficiency");
             }
 
-            instance.Settings.defaultEfficiency = Widgets.HorizontalSlider(efficiencySlider, instance.Settings.defaultEfficiency, 5, 300, false, instance.Settings.defaultEfficiency.ToString(), "5", "300", 5);
+            Instance.Settings.DefaultEfficiency = Widgets.HorizontalSlider(efficiencySlider, Instance.Settings.DefaultEfficiency, 5, 300, false, Instance.Settings.DefaultEfficiency.ToString(), "5", "300", 5);
 
             // Reset extra settings
             Rect resetExtraButton = otherSettingsRight.BottomHalf().BottomPart(0.5f).RightPart(0.8f);
@@ -465,14 +539,14 @@ namespace ArchieVBetterWeight
         {
             float newMass;
 
-            if (instance.Settings.roundToNearest5)
+            if (Instance.Settings.RoundToNearest5)
             {
-                newMass = (float)Math.Round(initMass * 5f, instance.Settings.numberOfDPToRoundTo, MidpointRounding.AwayFromZero) / 5f;
-                newMass = (float)Math.Round(newMass, instance.Settings.numberOfDPToRoundTo);
+                newMass = (float)Math.Round(initMass * 5f, Instance.Settings.NumberOfDPToRoundTo, MidpointRounding.AwayFromZero) / 5f;
+                newMass = (float)Math.Round(newMass, Instance.Settings.NumberOfDPToRoundTo);
             }
             else
             {
-                newMass = (float)Math.Round(initMass, instance.Settings.numberOfDPToRoundTo, MidpointRounding.AwayFromZero);
+                newMass = (float)Math.Round(initMass, Instance.Settings.NumberOfDPToRoundTo, MidpointRounding.AwayFromZero);
             }
 
             return newMass;
@@ -498,7 +572,7 @@ namespace ArchieVBetterWeight
             if (thing.costList.NullOrEmpty())
             {
                 //if (devMode()) Log.Message($"Could not find any additional ingredients for {thing.defName}");
-                return mass == 0F ? 1F : mass * instance.settings.defaultEfficiency / 100;
+                return mass == 0F ? 1F : mass * Instance.settings.DefaultEfficiency / 100;
             }
 
             for (var i = 0; i < thing.costList.Count; i++)
@@ -507,8 +581,8 @@ namespace ArchieVBetterWeight
                 mass += part.thingDef.BaseMass * part.count;
             }
 
-            if (DevMode) Log.Message($"Calculated mass for: {thing.defName} using stuffMass: {stuffMass} is {mass * instance.settings.defaultEfficiency / 100}");
-            return mass == 0F ? 1F : mass * instance.settings.defaultEfficiency * 0.01F;
+            if (DevMode) Log.Message($"Calculated mass for: {thing.defName} using stuffMass: {stuffMass} is {mass * Instance.settings.DefaultEfficiency / 100}");
+            return mass == 0F ? 1F : mass * Instance.settings.DefaultEfficiency * 0.01F;
         }
 
 
@@ -519,7 +593,7 @@ namespace ArchieVBetterWeight
         /// <returns>true if it should be patched</returns>
         public static bool ShouldPatch(ThingDef thing)
         {
-            return instance.Settings.ToPatch.Contains(thing);
+            return Instance.Settings.ToPatch.Contains(thing);
         }
         #endregion
         #region SettingsFunctions
@@ -532,8 +606,8 @@ namespace ArchieVBetterWeight
         /// </summary>
         public static void SetListsToDefault()
         {
-            instance.Settings.ToPatch = instance.Settings.DefaultToPatch;
-            instance.Settings.NotToPatch = instance.Settings.DefaultNotToPatch;
+            Instance.Settings.ToPatch = Instance.Settings.DefaultToPatch;
+            Instance.Settings.NotToPatch = Instance.Settings.DefaultNotToPatch;
         }
 
         /// <summary>
@@ -541,8 +615,8 @@ namespace ArchieVBetterWeight
         /// </summary>
         public static void GenerateDefaultLists()
         {
-            instance.Settings.DefaultToPatch = generateDefaultListToPatch();
-            instance.Settings.DefaultNotToPatch = generateDefaultListToNotPatch();
+            Instance.Settings.DefaultToPatch = generateDefaultListToPatch();
+            Instance.Settings.DefaultNotToPatch = generateDefaultListToNotPatch();
         }
 
         /// <summary>
@@ -551,14 +625,14 @@ namespace ArchieVBetterWeight
         public static void SortlistNotToPatchlistToPatch()
         {
             // Order the lists by name if they have any stuff in the lists
-            if (!instance.Settings.NotToPatch.NullOrEmpty())
+            if (!Instance.Settings.NotToPatch.NullOrEmpty())
             {
-                instance.Settings.NotToPatch = instance.Settings.NotToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
+                Instance.Settings.NotToPatch = Instance.Settings.NotToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
             }
 
-            if (!instance.Settings.ToPatch.NullOrEmpty())
+            if (!Instance.Settings.ToPatch.NullOrEmpty())
             {
-                instance.Settings.ToPatch = instance.Settings.ToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
+                Instance.Settings.ToPatch = Instance.Settings.ToPatch.OrderBy(keySelector: kS => kS.defName).ToList();
             }
         }
 
@@ -576,9 +650,9 @@ namespace ArchieVBetterWeight
         /// </summary>
         public static void ResetOtherSettings()
         {
-            instance.Settings.defaultEfficiency = 65f;
-            instance.Settings.roundToNearest5 = true;
-            instance.Settings.numberOfDPToRoundTo = 0;
+            Instance.Settings.DefaultEfficiency = 65f;
+            Instance.Settings.RoundToNearest5 = true;
+            Instance.Settings.NumberOfDPToRoundTo = 0;
         }
 
         /// <summary>
@@ -586,31 +660,31 @@ namespace ArchieVBetterWeight
         /// </summary>
         public static void SetDefaultSettingsIfNeeded()
         {
-            if (instance.Settings.devMode)
+            if (Instance.Settings.DevMode)
             { Log.Warning("SetDefaultSettingsIfNeeded"); }
 
             // Generate the default lists every time to make sure they are correct and save them for the settings menu
             GenerateDefaultLists();
 
             // If just one is blank that could just be config. If both are blank there's an issue
-            if (instance.Settings.NotToPatch.NullOrEmpty() && instance.Settings.ToPatch.NullOrEmpty())
+            if (Instance.Settings.NotToPatch.NullOrEmpty() && Instance.Settings.ToPatch.NullOrEmpty())
             {
                 SetListsToDefault();
             }
 
-            if (instance.Settings.defaultEfficiency.Equals(0))
+            if (Instance.Settings.DefaultEfficiency.Equals(0))
             {
-                instance.Settings.defaultEfficiency = 65f;
+                Instance.Settings.DefaultEfficiency = 65f;
             }
 
-            if (instance.Settings.roundToNearest5.Equals(null))
+            if (Instance.Settings.RoundToNearest5.Equals(null))
             {
-                instance.Settings.roundToNearest5 = true;
+                Instance.Settings.RoundToNearest5 = true;
             }
 
-            if (instance.Settings.numberOfDPToRoundTo.Equals(null))
+            if (Instance.Settings.NumberOfDPToRoundTo.Equals(null))
             {
-                instance.Settings.numberOfDPToRoundTo = 0;
+                Instance.Settings.NumberOfDPToRoundTo = 0;
             }
         }
 
