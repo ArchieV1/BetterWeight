@@ -5,6 +5,7 @@ using UnityEngine;
 using System.Linq;
 using HarmonyLib;
 using RimWorld;
+using static ArchieVBetterWeight.DevLogger;
 
 namespace ArchieVBetterWeight
 {
@@ -111,7 +112,7 @@ namespace ArchieVBetterWeight
             for (int i = 0; i < buildings.Count; i++)
             {
                 ThingDef buildingDef = buildings[i];
-                if (DevMode) Log.Message($"Iterating through building: {buildingDef.defName}");
+                DevMessage($"Iterating through building: {buildingDef.defName}");
 
                 // If it's stuffable, calculate every permutation
                 if (buildingDef.MadeFromStuff)
@@ -150,14 +151,14 @@ namespace ArchieVBetterWeight
             {
                 var stuffCategoryDef = buildingDef.stuffCategories[stuffCategoryIndex];
 
-                if (DevMode) Log.Message($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}");
+                DevMessage($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}");
                 
                 for (var i = 0; i < stuffDefs.Count; i++)
                 {
                     var stuffDef = stuffDefs[i];
-                    if (DevMode) Log.Message($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}; Checking stuff: {stuffDef.defName}");
+                    DevMessage($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}; Checking stuff: {stuffDef.defName}");
                     if (!stuffDef.stuffProps.categories.Contains(stuffCategoryDef)) continue;
-                    if (DevMode) Log.Message($"Added: Building: {buildingDef.defName}; StuffCategoryDef: {stuffCategoryDef.defName}; Stuff: {stuffDef.defName}; identifier: {buildingDef.defName + stuffDef.defName}");
+                    DevMessage($"Added: Building: {buildingDef.defName}; StuffCategoryDef: {stuffCategoryDef.defName}; Stuff: {stuffDef.defName}; identifier: {buildingDef.defName + stuffDef.defName}");
                     yield return stuffDef;
                 }
             }
@@ -188,9 +189,9 @@ namespace ArchieVBetterWeight
         /// <param name="def"></param>
         private static void PatchMass(ThingDef def)
         {
-            if (SetMassValueTo(def, RoundMass(CalculateMass(def))) && DevMode)
+            if (SetMassValueTo(def, RoundMass(CalculateMass(def))))
             {
-                Log.Message($"BetterWeight: Added: {def.defName}; New weight: {RoundMass(CalculateMass(def))}");
+                DevMessage($"BetterWeight: Added: {def.defName}; New weight: {RoundMass(CalculateMass(def))}");
                 return;
             }
             
@@ -200,10 +201,7 @@ namespace ArchieVBetterWeight
                 value = RoundMass(CalculateMass(def))
             });
 
-            if (DevMode)
-            {
-                Log.Message($"BetterWeight: Added new mass stat for: {def.defName}");
-            }
+            DevMessage($"BetterWeight: Added new mass stat for: {def.defName}");
         }
 
         public static void RefreshSettings()
@@ -243,7 +241,7 @@ namespace ArchieVBetterWeight
                 for (var changedDefIndex = 0; changedDefIndex < changedDefs.Count; changedDefIndex++)
                 {
                     var def = changedDefs[changedDefIndex];
-                    if (DevMode) Log.Message($"Now recalculating {def.defName}");
+                    DevMessage($"Now recalculating {def.defName}");
                     // Remove/add all permutations if it's made from stuff so the harmony patch works properly
                     if (def.MadeFromStuff)
                     {
@@ -314,7 +312,7 @@ namespace ArchieVBetterWeight
             Rect devModeToggleRect = inRect.RightPart(0.06f).TopPart(0.04f);
             Widgets.CheckboxLabeled(devModeToggleRect, "Dev", ref Instance.Settings.DevMode);
 
-            List<ThingDef> generateSelectionWindow(String sideStr, Rect sideRect, List<ThingDef> list, String title, String titleToolTip, ref Vector2 scrollPosition, List<ThingDef> selectedArray)
+            List<ThingDef> generateSelectionWindow(string sideStr, Rect sideRect, List<ThingDef> list, string title, string titleToolTip, ref Vector2 scrollPosition, List<ThingDef> selectedArray)
             {
                 float num = 0f;
 
@@ -351,19 +349,13 @@ namespace ArchieVBetterWeight
                             // Ctrl click lets you select 2+ before moving them
                             if (Event.current.control || Event.current.command)
                             {
-                                if (Settings.DevMode)
-                                {
-                                    Log.Message($"Ctrl/Cmd clicked{sideStr}\nBefore:");
-                                    Log.Message(String.Join(", ", selectedArray));
-                                }
+                                DevMessage($"Ctrl/Cmd clicked{sideStr}\nBefore:");
+                                DevMessage(string.Join(", ", selectedArray));
 
                                 selectedArray.Add(thing);
 
-                                if (Settings.DevMode)
-                                {
-                                    Log.Message("After:");
-                                    Log.Message(String.Join(", ", selectedArray));
-                                }
+                                DevMessage("After:");
+                                DevMessage(string.Join(", ", selectedArray));
                             }
                             else
                             {
@@ -559,19 +551,19 @@ namespace ArchieVBetterWeight
         /// <returns>The (new) mass of the passed value</returns>
         public static float CalculateMass(ThingDef thing, float stuffMass = 1)
         {
-            //Log.Warning("Start CalculateMass");
-            //if(devMode()) Log.Message($"Now calculating mass for: {thing.defName} using stuffMass: {stuffMass}");
+            DevWarning("Started CalculateMass");
+            DevMessage($"Now calculating mass for: {thing.defName} using stuffMass: {stuffMass}");
             float mass = 0.00f;
 
             if (thing.MadeFromStuff)
             {
-                //if (devMode()) Log.Message($"{thing.defName} is made out of stuff, adding extra weight...");
+                DevMessage($"{thing.defName} is made out of stuff, adding extra weight...");
                 mass += stuffMass * thing.costStuffCount;
             }
 
             if (thing.costList.NullOrEmpty())
             {
-                //if (devMode()) Log.Message($"Could not find any additional ingredients for {thing.defName}");
+                DevMessage($"Could not find any additional ingredients for {thing.defName}");
                 return mass == 0F ? 1F : mass * Instance.settings.DefaultEfficiency / 100;
             }
 
@@ -581,7 +573,7 @@ namespace ArchieVBetterWeight
                 mass += part.thingDef.BaseMass * part.count;
             }
 
-            if (DevMode) Log.Message($"Calculated mass for: {thing.defName} using stuffMass: {stuffMass} is {mass * Instance.settings.DefaultEfficiency / 100}");
+            DevMessage($"Calculated mass for: {thing.defName} using stuffMass: {stuffMass} is {mass * Instance.settings.DefaultEfficiency / 100}");
             return mass == 0F ? 1F : mass * Instance.settings.DefaultEfficiency * 0.01F;
         }
 
@@ -660,8 +652,7 @@ namespace ArchieVBetterWeight
         /// </summary>
         public static void SetDefaultSettingsIfNeeded()
         {
-            if (Instance.Settings.DevMode)
-            { Log.Warning("SetDefaultSettingsIfNeeded"); }
+            DevWarning("SetDefaultSettingsIfNeeded");
 
             // Generate the default lists every time to make sure they are correct and save them for the settings menu
             GenerateDefaultLists();
