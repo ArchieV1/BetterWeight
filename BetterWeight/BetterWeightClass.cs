@@ -96,7 +96,7 @@ namespace ArchieVBetterWeight
                     }
 
                     // Stuffed buildings will not default back to their original value without this
-                    if (MassMap.ContainsKey(def.defName) && def.BaseMass != MassMap[def.defName])
+                    if (MassMap.ContainsKey(def.defName) && !Mathf.Approximately(def.BaseMass, MassMap[def.defName]))
                     {
                         SetMassValueTo(def, MassMap[def.defName]);
                     }
