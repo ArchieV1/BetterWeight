@@ -109,9 +109,8 @@ namespace ArchieVBetterWeight
             }
 
             // Iterate through all buildings to be patched
-            for (int i = 0; i < buildings.Count; i++)
+            foreach (var buildingDef in buildings)
             {
-                ThingDef buildingDef = buildings[i];
                 DevMessage($"Iterating through building: {buildingDef.defName}");
 
                 // If it's stuffable, calculate every permutation
@@ -147,15 +146,12 @@ namespace ArchieVBetterWeight
         private static IEnumerable<ThingDef> CalculatePermutations(ThingDef buildingDef)
         {
             // Go through every StuffCategory for the building
-            for (int stuffCategoryIndex = 0; stuffCategoryIndex < buildingDef.stuffCategories.Count; stuffCategoryIndex++)
+            foreach (var stuffCategoryDef in buildingDef.stuffCategories)
             {
-                var stuffCategoryDef = buildingDef.stuffCategories[stuffCategoryIndex];
-
                 DevMessage($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}");
-                
-                for (var i = 0; i < StuffDefs.Count; i++)
+
+                foreach (var stuffDef in StuffDefs)
                 {
-                    var stuffDef = StuffDefs[i];
                     DevMessage($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}; Checking stuff: {stuffDef.defName}");
                     if (!stuffDef.stuffProps.categories.Contains(stuffCategoryDef)) continue;
                     DevMessage($"Added: Building: {buildingDef.defName}; StuffCategoryDef: {stuffCategoryDef.defName}; Stuff: {stuffDef.defName}; identifier: {buildingDef.defName + stuffDef.defName}");
@@ -173,13 +169,13 @@ namespace ArchieVBetterWeight
         /// <returns>True if the def was updated.</returns>
         private static bool SetMassValueTo(ThingDef def, float value)
         {
-            for (var i = 0; i < def.statBases.Count; i++)
+            foreach (var stat in def.statBases)
             {
-                var stat = def.statBases[i];
                 if (stat.stat.label != "mass") continue;
                 stat.value = value;
                 return true;
             }
+
             return false;
         }
 
@@ -238,9 +234,8 @@ namespace ArchieVBetterWeight
             if (ChangedDefs.Count > 0)
             {
                 Log.Message("BetterWeight: Recalculating changed buildings...");
-                for (var changedDefIndex = 0; changedDefIndex < ChangedDefs.Count; changedDefIndex++)
+                foreach (var def in ChangedDefs)
                 {
-                    var def = ChangedDefs[changedDefIndex];
                     DevMessage($"Now recalculating {def.defName}");
                     // Remove/add all permutations if it's made from stuff so the harmony patch works properly
                     if (def.MadeFromStuff)
@@ -259,9 +254,8 @@ namespace ArchieVBetterWeight
                         continue;
                     }
 
-                    for (var i = 0; i < def.statBases.Count; i++)
+                    foreach (var stat in def.statBases)
                     {
-                        var stat = def.statBases[i];
                         // Set the value back to the original XML defined value
                         if (stat.stat.label == "mass") stat.value = MassMap[def.defName];
                     }
