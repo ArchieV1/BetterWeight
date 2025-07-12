@@ -23,11 +23,15 @@ namespace ArchieVBetterWeight
             {
                 return true;
             }
+            
             string identifier = req.Thing.def.defName + req.StuffDef.defName;
-            if (!BetterWeight.CachedMassMap.TryGetValue(identifier, out float value)) return true;
-            for (int i = 0; i < req.BuildableDef.statBases.Count; i++)
+            if (!BetterWeight.CachedMassMap.TryGetValue(identifier, out float value))
             {
-                StatModifier stat = req.BuildableDef.statBases[i];
+                return true;
+            }
+            
+            foreach (StatModifier stat in req.BuildableDef.statBases)
+            {
                 if (stat.stat.label != "mass") continue;
                 stat.value = value;
             }
