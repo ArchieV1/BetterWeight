@@ -34,4 +34,6 @@ None
 - Pre v2.1.8 in the 1.5 version the default list of buildings to edit the mass of is incorrect
   - To fix you can just delete the `1.5` folder and rename the `1.6` folder to `1.5` or update to v2.1.8
 - Pre v2.1.8 the mod incorrectly states that it requires `HugsLib`
+  - v2.1.8 fixes this for 1.5 and 1.6
 - Pre v2.1.8 versions the mod incorrectly includes `Harmony` in the distribution files
+  - v2.1.8 fixes this for 1.5 and 1.6
