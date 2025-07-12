@@ -24,16 +24,15 @@ namespace ArchieVBetterWeight
                 return true;
             }
             string identifier = req.Thing.def.defName + req.StuffDef.defName;
-            if (!BetterWeight.cachedMassMap.ContainsKey(identifier)) return true;
+            if (!BetterWeight.CachedMassMap.TryGetValue(identifier, out float value)) return true;
             for (int i = 0; i < req.BuildableDef.statBases.Count; i++)
             {
                 StatModifier stat = req.BuildableDef.statBases[i];
                 if (stat.stat.label != "mass") continue;
-                stat.value = BetterWeight.cachedMassMap[identifier];
-                // Returns true so function runs with modifed StatReq
-                return true;
+                stat.value = value;
             }
-            // Always return true to prevent any hiccups
+            
+            // Return true so original method will now run
             return true;
         }
     }
