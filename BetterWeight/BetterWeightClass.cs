@@ -695,33 +695,67 @@ namespace ArchieVBetterWeight
         private static List<ThingDef> GenerateDefaultListToPatch()
         {
             List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
-
+            foreach (string log in things.Where(thing =>
+                             thing.category == ThingCategory.Building &&
+                             (thing.costList != null || thing.costStuffCount != 0))
+                         .Select(thing => $"{thing.defName}|{thing.BaseMass}"))
+            {
+                Log.Warning(log);
+            }
             return things.Where(thing =>
                     thing.category == ThingCategory.Building &&
-                    Mathf.Approximately(thing.BaseMass, 1) &&
+                    IsStrangeMass(thing.BaseMass) &&
                     (thing.costList != null || thing.costStuffCount != 0))
                 .ToList();
-
         }
-
+        
         /// <summary>
         /// Generates list of ThingDefs that are, by default, not to be patched.
         /// </summary>
         /// <returns>List of thingDefs that should not have a new mass calculated by default</returns>
         private static List<ThingDef> GenerateDefaultListToNotPatch()
         {
-            List<ThingDef> things = (List<ThingDef>)DefDatabase<ThingDef>.AllDefs;
-            List<ThingDef> toNotPatch = new List<ThingDef>();
+            List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
 
-            foreach (ThingDef thing in things)
+            return things.Where(thing =>
+                    thing.category == ThingCategory.Building &&
+                    !IsStrangeMass(thing.BaseMass) &&
+                    (thing.costList != null || thing.costStuffCount != 0))
+                .ToList();
+        }
+
+        /// <summary>
+        /// If the given mass does not seem like it was added as part of a building's XML.
+        /// Strange if mass is 0/1, has more than 2 decimal places, final digit is neither 0 nor 5.
+        /// </summary>
+        /// <param name="mass"></param>
+        /// <returns></returns>
+        private static bool IsStrangeMass(float mass)
+        {
+            // In 1.5 a change was made that means mass may be calculated as something other than 1 when one isn't set
+            // Before 1.5 all non-set masses would just default to 1 but now they always look strange so can be worked
+            // out with this method instead.
+            int decimalPlaces = GetDecimalPlaces(mass);
+            int finalDigit = (int)(Math.Pow(10, decimalPlaces) * mass) % 10;
+
+            return Mathf.Approximately(mass, 0) ||
+                   Mathf.Approximately(mass, 1) ||
+                   decimalPlaces > 2 ||
+                   (finalDigit != 0 && finalDigit != 5); 
+        }
+        
+        private static int GetDecimalPlaces(float num)
+        {
+            num = Math.Abs(num); // Make sure it is positive
+            num -= (int)num;     // Remove the integer part of the number
+            int decimalPlaces = 0;
+            while (num > 0)
             {
-                if (thing.category == ThingCategory.Building && !Mathf.Approximately(thing.BaseMass, 1) && (thing.costList != null || thing.costStuffCount != 0))
-                {
-                    toNotPatch.Add(thing);
-                }
+                decimalPlaces++;
+                num *= 10;
+                num -= (int)num;
             }
-
-            return toNotPatch;
+            return decimalPlaces;
         }
         #endregion
     }
