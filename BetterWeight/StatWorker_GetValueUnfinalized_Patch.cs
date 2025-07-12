@@ -19,21 +19,28 @@ namespace ArchieVBetterWeight
         static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
         {
             // Quick check to make sure thing isn't null
-            if (req.StuffDef == null || req.Thing == null || !req.Thing.def.MadeFromStuff || req.Thing.def.category != ThingCategory.Building || req.BuildableDef.statBases == null)
+            if (req.StuffDef == null ||
+                req.Thing == null ||
+                !req.Thing.def.MadeFromStuff ||
+                req.Thing.def.category != ThingCategory.Building ||
+                req.BuildableDef.statBases == null)
             {
                 return true;
             }
+            
             string identifier = req.Thing.def.defName + req.StuffDef.defName;
-            if (!BetterWeight.cachedMassMap.ContainsKey(identifier)) return true;
-            for (int i = 0; i < req.BuildableDef.statBases.Count; i++)
+            if (!BetterWeight.CachedMassMap.TryGetValue(identifier, out float value))
             {
-                StatModifier stat = req.BuildableDef.statBases[i];
-                if (stat.stat.label != "mass") continue;
-                stat.value = BetterWeight.cachedMassMap[identifier];
-                // Returns true so function runs with modifed StatReq
                 return true;
             }
-            // Always return true to prevent any hiccups
+            
+            foreach (StatModifier stat in req.BuildableDef.statBases)
+            {
+                if (stat.stat.label != "mass") continue;
+                stat.value = value;
+            }
+            
+            // Return true so original method will now run
             return true;
         }
     }
