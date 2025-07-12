@@ -19,7 +19,11 @@ namespace ArchieVBetterWeight
         static bool Prefix(float __result, StatRequest req, bool applyPostProcess)
         {
             // Quick check to make sure thing isn't null
-            if (req.StuffDef == null || req.Thing == null || !req.Thing.def.MadeFromStuff || req.Thing.def.category != ThingCategory.Building || req.BuildableDef.statBases == null)
+            if (req.StuffDef == null ||
+                req.Thing == null ||
+                !req.Thing.def.MadeFromStuff ||
+                req.Thing.def.category != ThingCategory.Building ||
+                req.BuildableDef.statBases == null)
             {
                 return true;
             }
