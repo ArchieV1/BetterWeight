@@ -79,7 +79,7 @@ namespace ArchieVBetterWeight
             CachedMassMap.Clear();
             List<ThingDef> buildings = new List<ThingDef>();
 
-            foreach (var def in DefDatabase<ThingDef>.AllDefs)
+            foreach (ThingDef def in DefDatabase<ThingDef>.AllDefs)
             {
                 if (def.category == ThingCategory.Building)
                 {
@@ -109,7 +109,7 @@ namespace ArchieVBetterWeight
             }
 
             // Iterate through all buildings to be patched
-            foreach (var buildingDef in buildings)
+            foreach (ThingDef buildingDef in buildings)
             {
                 DevMessage($"Iterating through building: {buildingDef.defName}");
 
@@ -146,11 +146,11 @@ namespace ArchieVBetterWeight
         private static IEnumerable<ThingDef> CalculatePermutations(ThingDef buildingDef)
         {
             // Go through every StuffCategory for the building
-            foreach (var stuffCategoryDef in buildingDef.stuffCategories)
+            foreach (StuffCategoryDef stuffCategoryDef in buildingDef.stuffCategories)
             {
                 DevMessage($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}");
 
-                foreach (var stuffDef in StuffDefs)
+                foreach (ThingDef stuffDef in StuffDefs)
                 {
                     DevMessage($"Iterating through stuffCategories for: {buildingDef.defName}; Now iterating through stuffCategory: {stuffCategoryDef.defName}; Checking stuff: {stuffDef.defName}");
                     if (!stuffDef.stuffProps.categories.Contains(stuffCategoryDef)) continue;
@@ -169,7 +169,7 @@ namespace ArchieVBetterWeight
         /// <returns>True if the def was updated.</returns>
         private static bool SetMassValueTo(ThingDef def, float value)
         {
-            foreach (var stat in def.statBases)
+            foreach (StatModifier stat in def.statBases)
             {
                 if (stat.stat.label != "mass") continue;
                 stat.value = value;
@@ -234,13 +234,13 @@ namespace ArchieVBetterWeight
             if (ChangedDefs.Count > 0)
             {
                 Log.Message("BetterWeight: Recalculating changed buildings...");
-                foreach (var def in ChangedDefs)
+                foreach (ThingDef def in ChangedDefs)
                 {
                     DevMessage($"Now recalculating {def.defName}");
                     // Remove/add all permutations if it's made from stuff so the harmony patch works properly
                     if (def.MadeFromStuff)
                     {
-                        foreach (var stuffDef in CalculatePermutations(def))
+                        foreach (ThingDef stuffDef in CalculatePermutations(def))
                         {
                             string identifier = def.defName + stuffDef.defName;
                             if (ShouldPatch(def) && !CachedMassMap.ContainsKey(identifier)) CachedMassMap.Add(identifier, RoundMass(CalculateMass(def, stuffDef.BaseMass)));
@@ -254,7 +254,7 @@ namespace ArchieVBetterWeight
                         continue;
                     }
 
-                    foreach (var stat in def.statBases)
+                    foreach (StatModifier stat in def.statBases)
                     {
                         // Set the value back to the original XML defined value
                         if (stat.stat.label == "mass") stat.value = MassMap[def.defName];
@@ -274,10 +274,10 @@ namespace ArchieVBetterWeight
 
         // Control the scroll bars and which is currently selected
         // Outside of the func so they're remembered
-        private Vector2 ScrollPositionLeft;
-        private Vector2 ScrollPositionRight;
-        private List<ThingDef> leftSelected = new List<ThingDef>();
-        private List<ThingDef> rightSelected = new List<ThingDef>();
+        private Vector2 _scrollPositionLeft;
+        private Vector2 _scrollPositionRight;
+        private List<ThingDef> _leftSelected = new List<ThingDef>();
+        private List<ThingDef> _rightSelected = new List<ThingDef>();
 
         /// <summary>
         /// The GUI settings page
@@ -286,18 +286,18 @@ namespace ArchieVBetterWeight
         public override void DoSettingsWindowContents(Rect inRect)
         {
             // Sort the lists alphabetically
-            SortlistNotToPatchlistToPatch();
+            SortListNotToPatchListToPatch();
 
             base.DoSettingsWindowContents(inRect: inRect);
 
 
             Rect topRect = inRect.TopPart(0.10f);
-            Rect MainRect = inRect.BottomPart(0.90f).TopPart(0.75f);
+            Rect mainRect = inRect.BottomPart(0.90f).TopPart(0.75f);
 
             Widgets.Label(topRect.TopHalf(), "Changed buildings will be automatically hot swapped");
 
-            Rect leftSide = MainRect.LeftPart(0.46f);
-            Rect rightSide = MainRect.RightPart(0.46f);
+            Rect leftSide = mainRect.LeftPart(0.46f);
+            Rect rightSide = mainRect.RightPart(0.46f);
 
 
             // ----------------------------------------------------------------------------------------------------------------
@@ -306,7 +306,7 @@ namespace ArchieVBetterWeight
             Rect devModeToggleRect = inRect.RightPart(0.06f).TopPart(0.04f);
             Widgets.CheckboxLabeled(devModeToggleRect, "Dev", ref Instance.Settings.DevMode);
 
-            List<ThingDef> generateSelectionWindow(string sideStr, Rect sideRect, List<ThingDef> list, string title, string titleToolTip, ref Vector2 scrollPosition, List<ThingDef> selectedArray)
+            List<ThingDef> GenerateSelectionWindow(string sideStr, Rect sideRect, List<ThingDef> list, string title, string titleToolTip, ref Vector2 scrollPosition, List<ThingDef> selectedArray)
             {
                 float num = 0f;
 
@@ -391,8 +391,8 @@ namespace ArchieVBetterWeight
                 return selectedArray;
             }
 
-            leftSelected = generateSelectionWindow("leftSide", leftSide, Settings.NotToPatch, "Use Default Mass", "All things in this category will not be effected by BetterMass and will instead use their default mass", ref ScrollPositionLeft, leftSelected);
-            rightSelected = generateSelectionWindow("rightSide", rightSide, Settings.ToPatch, "Use BetterWeight", "", ref ScrollPositionRight, rightSelected);
+            _leftSelected = GenerateSelectionWindow("leftSide", leftSide, Settings.NotToPatch, "Use Default Mass", "All things in this category will not be effected by BetterMass and will instead use their default mass", ref _scrollPositionLeft, _leftSelected);
+            _rightSelected = GenerateSelectionWindow("rightSide", rightSide, Settings.ToPatch, "Use BetterWeight", "", ref _scrollPositionRight, _rightSelected);
 
             #region Centre buttons
             // ----------------------------------------------------------------------------------------------------------------
@@ -401,35 +401,35 @@ namespace ArchieVBetterWeight
             // Right arrow
             // Moving from NotToPatch to ToPatch (Left side to right side)
             if (Widgets.ButtonImage(
-                butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f)
-                    .LeftPart(pct: 0.1f).RightPart(0.5f), tex: TexUI.ArrowTexRight) && leftSelected != null)
+                butRect: mainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f)
+                    .LeftPart(pct: 0.1f).RightPart(0.5f), tex: TexUI.ArrowTexRight) && _leftSelected != null)
             {
                 // Add and remove them from correct lists
-                foreach (ThingDef thing in leftSelected)
+                foreach (ThingDef thing in _leftSelected)
                 {
                     Settings.ToPatch.Add(thing);
                     Settings.NotToPatch.Remove(thing);
                     if (!ChangedDefs.Contains(thing)) ChangedDefs.Add(thing);
                 }
-                leftSelected = new List<ThingDef>();
+                _leftSelected = new List<ThingDef>();
             }
             // Left arrow
             // Moving from ToPatch to NotToPatch (Right side to left side)
             if (Widgets.ButtonImage(
-                butRect: MainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f)
-                    .LeftPart(pct: 0.1f).LeftPart(0.5f), tex: TexUI.ArrowTexLeft) && rightSelected != null)
+                butRect: mainRect.BottomPart(pct: 0.6f).TopPart(pct: 0.1f).RightPart(pct: 0.525f)
+                    .LeftPart(pct: 0.1f).LeftPart(0.5f), tex: TexUI.ArrowTexLeft) && _rightSelected != null)
             {
-                foreach (ThingDef thing in rightSelected)
+                foreach (ThingDef thing in _rightSelected)
                 {
                     Settings.NotToPatch.Add(thing);
                     Settings.ToPatch.Remove(thing);
                     if (!ChangedDefs.Contains(thing)) ChangedDefs.Add(thing);
                 }
-                rightSelected = new List<ThingDef>();
+                _rightSelected = new List<ThingDef>();
             }
 
             // Reset button
-            Rect resetButton = MainRect.BottomPart(pct: 0.7f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(0.1f);
+            Rect resetButton = mainRect.BottomPart(pct: 0.7f).TopPart(pct: 0.1f).RightPart(pct: 0.525f).LeftPart(0.1f);
             if (Widgets.ButtonText(resetButton, "Reset"))
             {
                 SetListsToDefault();
@@ -451,20 +451,27 @@ namespace ArchieVBetterWeight
             // Left side
             Rect otherSettingsLeft = otherSettingsRect.LeftPart(0.45f);
 
-            // numberOfDPToRoundTo. Int with min and max val
-            Rect numDPRect = otherSettingsLeft.TopHalf();
-            Rect numDPLabel = numDPRect.LeftHalf();
-            Rect numDPSlider = numDPRect.RightHalf().BottomPart(0.7f);
+            // numberOfDpToRoundTo. Int with min and max val
+            Rect numDecimalsRect = otherSettingsLeft.TopHalf();
+            Rect numDecimalsLabel = numDecimalsRect.LeftHalf();
+            Rect numDecimalsSlider = numDecimalsRect.RightHalf().BottomPart(0.7f);
 
-            Widgets.Label(numDPLabel, "Number of Decimal Places to Round Masses to");
-            Instance.Settings.NumberOfDPToRoundTo = (int)Math.Round(Widgets.HorizontalSlider(numDPSlider, Instance.Settings.NumberOfDPToRoundTo, 0f, 2f, false, null, "0", "2", -1), MidpointRounding.AwayFromZero);
-
-            // roundToNearest5. Bool
-            Rect Nearest5Rect = otherSettingsLeft.BottomHalf();
-            Rect Nearest5Label = Nearest5Rect.LeftHalf();
-            Rect Nearest5Toggle = Nearest5Rect.RightHalf();
-
-            Widgets.CheckboxLabeled(Nearest5Rect, "Round to nearest 5", ref Instance.Settings.RoundToNearest5);
+            Widgets.Label(numDecimalsLabel, "Number of Decimal Places to Round Masses to");
+            Instance.Settings.NumberOfDPToRoundTo = (int)Math.Round(Widgets.HorizontalSlider(
+                numDecimalsSlider,
+                Instance.Settings.NumberOfDPToRoundTo,
+                0f,
+                2f,
+                false,
+                null,
+                "0",
+                "2",
+                -1),
+                MidpointRounding.AwayFromZero);
+            
+            // Round to nearest 5
+            Rect nearest5Rect = otherSettingsLeft.BottomHalf();
+            Widgets.CheckboxLabeled(nearest5Rect, "Round to nearest 5", ref Instance.Settings.RoundToNearest5);
 
             // Right side
             Rect otherSettingsRight = otherSettingsRect.RightPart(0.45f);
@@ -481,12 +488,18 @@ namespace ArchieVBetterWeight
                     "BetterWeight = Sum of all components × Efficiency");
             }
 
-            Instance.Settings.DefaultEfficiency = Widgets.HorizontalSlider(efficiencySlider, Instance.Settings.DefaultEfficiency, 5, 300, false, Instance.Settings.DefaultEfficiency.ToString(), "5", "300", 5);
+            Instance.Settings.DefaultEfficiency = Widgets.HorizontalSlider(efficiencySlider,
+                Instance.Settings.DefaultEfficiency,
+                5, 
+                300,
+                false, 
+                Instance.Settings.DefaultEfficiency.ToString(),
+                "5",
+                "300",
+                5);
 
             // Reset extra settings
             Rect resetExtraButton = otherSettingsRight.BottomHalf().BottomPart(0.5f).RightPart(0.8f);
-            //Widgets.ButtonText(resetExtraButton, "Reset other settings (NOT LISTS)");
-            //Widgets.DrawHighlightIfMouseover(resetExtraButton);
 
             if (Mouse.IsOver(resetExtraButton))
             {
@@ -519,9 +532,9 @@ namespace ArchieVBetterWeight
         /// <summary>
         /// Round the mass based on the settings above
         /// </summary>
-        /// <param name="initMass"></param>
+        /// <param name="initMass">Initial mass before rounding</param>
         /// <returns></returns>
-        public static float RoundMass(float initMass)
+        private static float RoundMass(float initMass)
         {
             float newMass;
 
@@ -539,11 +552,12 @@ namespace ArchieVBetterWeight
         }
 
         /// <summary>
-        /// Calculate mass recusively. NO ROUNDING IS DONE HERE
+        /// Calculate mass recursively. NO ROUNDING IS DONE HERE
         /// </summary>
         /// <param name="thing">The thing to have its new value calculated</param>
+        /// <param name="stuffMass">The weight of the stugg</param>
         /// <returns>The (new) mass of the passed value</returns>
-        public static float CalculateMass(ThingDef thing, float stuffMass = 1)
+        private static float CalculateMass(ThingDef thing, float stuffMass = 1f)
         {
             DevWarning("Started CalculateMass");
             DevMessage($"Now calculating mass for: {thing.defName} using stuffMass: {stuffMass}");
@@ -561,9 +575,8 @@ namespace ArchieVBetterWeight
                 return mass == 0F ? 1F : mass * Instance._settings.DefaultEfficiency / 100;
             }
 
-            for (var i = 0; i < thing.costList.Count; i++)
+            foreach (ThingDefCountClass part in thing.costList)
             {
-                var part = thing.costList[i];
                 mass += part.thingDef.BaseMass * part.count;
             }
 
@@ -577,11 +590,12 @@ namespace ArchieVBetterWeight
         /// </summary>
         /// <param name="thing">The thing to be checked if it needs patching</param>
         /// <returns>true if it should be patched</returns>
-        public static bool ShouldPatch(ThingDef thing)
+        private static bool ShouldPatch(ThingDef thing)
         {
             return Instance.Settings.ToPatch.Contains(thing);
         }
         #endregion
+        
         #region SettingsFunctions
         /// ---------------------------------------------------------------------------------------------------------------------
         ///                                             Settings functions
@@ -590,7 +604,7 @@ namespace ArchieVBetterWeight
         /// <summary>
         /// Set ToPatch and NotToPatch to their default lists from the lists that are generated at game start
         /// </summary>
-        public static void SetListsToDefault()
+        private static void SetListsToDefault()
         {
             Instance.Settings.ToPatch = Instance.Settings.DefaultToPatch;
             Instance.Settings.NotToPatch = Instance.Settings.DefaultNotToPatch;
@@ -599,16 +613,16 @@ namespace ArchieVBetterWeight
         /// <summary>
         /// Generate DefaultToPatch and DefaultNotToPatch for the settings menu
         /// </summary>
-        public static void GenerateDefaultLists()
+        private static void GenerateDefaultLists()
         {
-            Instance.Settings.DefaultToPatch = generateDefaultListToPatch();
-            Instance.Settings.DefaultNotToPatch = generateDefaultListToNotPatch();
+            Instance.Settings.DefaultToPatch = GenerateDefaultListToPatch();
+            Instance.Settings.DefaultNotToPatch = GenerateDefaultListToNotPatch();
         }
 
         /// <summary>
         /// Sort ToPatch and NotToPatch alphabetically
         /// </summary>
-        public static void SortlistNotToPatchlistToPatch()
+        private static void SortListNotToPatchListToPatch()
         {
             // Order the lists by name if they have any stuff in the lists
             if (!Instance.Settings.NotToPatch.NullOrEmpty())
@@ -634,7 +648,7 @@ namespace ArchieVBetterWeight
         /// <summary>
         /// Reset default defaultEfficiency, roundToNearest5 and numberOfDPToRoundTo
         /// </summary>
-        public static void ResetOtherSettings()
+        private static void ResetOtherSettings()
         {
             Instance.Settings.DefaultEfficiency = 65f;
             Instance.Settings.RoundToNearest5 = true;
@@ -678,20 +692,15 @@ namespace ArchieVBetterWeight
         /// Category = Building && baseMass = 1 && (has either costList or costStuffCount)
         /// </summary>
         /// <returns>List of thingDefs that should have a new mass calculated by default</returns>
-        public static List<ThingDef> generateDefaultListToPatch()
+        private static List<ThingDef> GenerateDefaultListToPatch()
         {
             List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
-            List<ThingDef> toPatch = new List<ThingDef>();
 
-            foreach (ThingDef thing in things)
-            {
-                if (thing.category == ThingCategory.Building && thing.BaseMass == 1 && (thing.costList != null || thing.costStuffCount != 0))
-                {
-                    toPatch.Add(thing);
-                }
-            }
-
-            return toPatch;
+            return things.Where(thing =>
+                    thing.category == ThingCategory.Building &&
+                    Mathf.Approximately(thing.BaseMass, 1) &&
+                    (thing.costList != null || thing.costStuffCount != 0))
+                .ToList();
 
         }
 
@@ -699,14 +708,14 @@ namespace ArchieVBetterWeight
         /// Generates list of ThingDefs that are, by default, not to be patched.
         /// </summary>
         /// <returns>List of thingDefs that should not have a new mass calculated by default</returns>
-        public static List<ThingDef> generateDefaultListToNotPatch()
+        private static List<ThingDef> GenerateDefaultListToNotPatch()
         {
             List<ThingDef> things = (List<ThingDef>)DefDatabase<ThingDef>.AllDefs;
             List<ThingDef> toNotPatch = new List<ThingDef>();
 
             foreach (ThingDef thing in things)
             {
-                if (thing.category == ThingCategory.Building && thing.BaseMass != 1 && (thing.costList != null || thing.costStuffCount != 0))
+                if (thing.category == ThingCategory.Building && !Mathf.Approximately(thing.BaseMass, 1) && (thing.costList != null || thing.costStuffCount != 0))
                 {
                     toNotPatch.Add(thing);
                 }
