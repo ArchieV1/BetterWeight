@@ -1,5 +1,5 @@
 # BetterWeight
-A rimworld mod that makes weight *better*
+A Rimworld mod that makes weight *better*
 
 ## Features
 * Adds weights to all buildings that don't normally have them (Balances Minify Everything)
@@ -17,13 +17,15 @@ A rimworld mod that makes weight *better*
 What if steel weighed double of what it does now? How would moving around the map with steel mortars be effected?
 
 ## Requirements
-Requires: [HugsLib](https://github.com/UnlimitedHugs/RimworldHugsLib) in order to run
-Reccomends: [Minify Everything](https://github.com/erdelf/MinifyEverything) to make use of the mod. Other similar mods also work
+* Harmony 
+
+Recommends:
+* [Minify Everything](https://github.com/erdelf/MinifyEverything) to make use of the mod. Other similar mods also work
 
 ## Compatibility
-Tested to work on rimworld version 1.1, 1.2, 1.3, 1.4
+Tested to work on rimworld version 1.1, 1.2, 1.3, 1.4, 1.5, 1.6  
 1.0 is supported in previous versions but not the current build  
-All DLC should be supported though I have only tested on Ideology  
+All DLC should be supported though I have only tested on Ideology/Royalty  
 
 ### Known Bugs
 None
