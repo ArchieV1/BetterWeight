@@ -325,5 +325,12 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Images\Logo.pdn" />
+    <Content Include="Images\Logo.png" />
+    <Content Include="Images\settings menu 2.1.2.gif" />
+    <Content Include="Images\Settings menu.gif" />
+    <Content Include="Images\Settings Menu.url" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
