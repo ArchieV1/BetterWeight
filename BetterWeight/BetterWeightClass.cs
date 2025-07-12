@@ -695,13 +695,7 @@ namespace ArchieVBetterWeight
         private static List<ThingDef> GenerateDefaultListToPatch()
         {
             List<ThingDef> things = DefDatabase<ThingDef>.AllDefsListForReading;
-            foreach (string log in things.Where(thing =>
-                             thing.category == ThingCategory.Building &&
-                             (thing.costList != null || thing.costStuffCount != 0))
-                         .Select(thing => $"{thing.defName}|{thing.BaseMass}"))
-            {
-                Log.Warning(log);
-            }
+
             return things.Where(thing =>
                     thing.category == ThingCategory.Building &&
                     IsStrangeMass(thing.BaseMass) &&
